@@ -1,0 +1,99 @@
+* Scratch
+- [[https://github.com/realgud/realgud][realGUD]]
+- [[https://github.com/emacs-lsp/lsp-mode/issues/385][DAP issue#385]]
+- [[https://microsoft.github.io/debug-adapter-protocol/overview][DAP spec]]
+- [[https://www.cs.utah.edu/~germain/PPS/Topics/debugging_programs.html][debugging process]]
+- [[https://www.tutorialspoint.com/gnu_debugger/gdb_commands.htm][GDB commands]]
+[[https://www.gnu.org/software/emacs/manual/html_node/emacs/GDB-User-Interface-Layout.html#GDB-User-Interface-Layout][GUD manual]]
+[[https://www.youtube.com/watch?v=sN88nACaNXE][VS demo]]
+
+** Ideas
+*** Run to cursor
+*** Time elapsed
+*** Dabbed window
+Each window in VS debugger can switch between several tabs. Instead of that, we can have a window switching between different ggud buffers. Say provide a ggud buffer list of current session. And shortcuts to buffers. Something like =w(indow) s(witch) o(utput)/c(onsole)/l(ocal)/s(tack)= to switch current window to ggud buffers.
+*** Run & run and stop at the first line
+One being a command and one with prefix argument
+*** Object marking
+So you know what variables are pointing to the same underlining object
+*** Show return value in local window
+*** Let user set a exception to not throwing in this program when exception breaks
+*** debugger specific settings
+* Separate View and Controller
+View → ggui
+
+Controller → ggud
+* UI
+** Source buffer
+** Breakpoint buffer
+** Local buffer
+** Watch buffer
+** Stack buffer
+** Hint buffer
+Shows all the actions you can do at point. E.g., when point is on a break point in source buffer, hint buffer could show
+#+BEGIN_SRC
+C-c t: toggle
+#+END_SRC
+When point is in breakpoint buffer, hint buffer could show
+#+BEGIN_SRC
+n: next
+P: previous
+t: toggle breakpoint
++: add breakpoint
+-: remove breakpoint
+F: filter breakpoint list
+#+END_SRC
+and if user hit =F=, point moves to hint buffer and user type there to filter stuff. It's like a multi-line minibuffer with more complex features. E.g., magit's commit buffer lets you input commit message and it displays help messages in comment. So for filter you have something like
+#+BEGIN_SRC
+(empty line)
+
+# Only text in the first line is used
+# Hit C-c C-c to finish, C-c C-k to abort
+#+END_SRC
+Basically when user needs to input something they are redirected to hint buffer, and hit =C-c C-c= or =C-c C-k= to finish or abort. That avoids all the trouble that occurs when you let user edit the text in place.
+** REPL buffer
+** Terminal buffer
+** Log buffer
+* UI components that I need
+** Tree
+Nodes with trees with indents.
+** Dynamic sortable filterable toggleable columned list
+*** Sortable
+A sort function and a sort algorithm are needed.
+*** toggleable
+Just provide a toggle method, not hard.
+*** filterable
+Have a method that goes through each entry and decide to show or hide it.
+*** dynamic
+Each entry knows it place in the buffer and can edit the text automatically by change of state.
+**** Overlay (fragile)
+They can manage their place with overlay. Overlays are separated by line feed.
+**** Refresh (very inefficient)
+Simple clear the buffer and insert everything whenever something changed. Maybe use a idle timer to apply several changes at once.
+*** Columns (managed by row)
+Top level node keeps a "tab stop list". Each entries, when displaying multiple columns, insert corresponding number of tabs between each column.
+* MVC model
+- Model :: debugger
+- View :: Emacs buffer, window, frame, text, ggud list, etc
+- Controller :: ggud-frame. Handles add break point, show stack, handles debugger events, etc.
+* Class
+** ggud-file-pos
+A position(line & column) in a file.
+** ggud-buffer-pos
+A position(line & column) in a file.
+** ggud-range
+A range is represented by an overlay.
+** ggud-displayable
+Something can be represented by text. Maintain a list of =[[ggud-range]]= so update of text representation is propagated.
+** ggud-button
+A =[[ggud-displayable]]= that can be clicked.
+** ggud-toggleable
+Something that can be toggled between states. They can be toggled by ggud command =[[ggud-toggle-at-point]]=.
+** ggud-hideshowable
+A =[[ggud-displayable]]= and =[[ggud-toggleable]]= that have two states: hide and show.
+** ggud-list
+A list that can be sorted
+** ggud-tree
+A tree, each node has a =[[ggud-list]]= (that can be sorted).
+* Methods
+* Docs
