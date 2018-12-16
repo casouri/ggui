@@ -77,23 +77,23 @@ Top level node keeps a "tab stop list". Each entries, when displaying multiple c
 - View :: Emacs buffer, window, frame, text, ggud list, etc
 - Controller :: ggud-frame. Handles add break point, show stack, handles debugger events, etc.
 * Class
-** ggud-file-pos
+** ggui-file-pos
 A position(line & column) in a file.
-** ggud-buffer-pos
+** ggui-buffer-pos
 A position(line & column) in a file.
-** ggud-range
+** ggui-range
 A range is represented by an overlay.
-** ggud-displayable
-Something can be represented by text. Maintain a list of =[[ggud-range]]= so update of text representation is propagated.
-** ggud-button
-A =[[ggud-displayable]]= that can be clicked.
-** ggud-toggleable
-Something that can be toggled between states. They can be toggled by ggud command =[[ggud-toggle-at-point]]=.
-** ggud-hideshowable
-A =[[ggud-displayable]]= and =[[ggud-toggleable]]= that have two states: hide and show.
-** ggud-list
+** ggui-displayable
+Something can be represented by text. Maintain a list of =[[ggui-range]]= so update of text representation is propagated.
+** ggui-button
+A =[[ggui-displayable]]= that can be clicked.
+** ggui-toggleable
+Something that can be toggled between states. They can be toggled by ggud command =[[ggui-toggle-at-point]]=.
+** ggui-hideshowable
+A =[[ggui-displayable]]= and =[[ggui-toggleable]]= that have two states: hide and show.
+** ggui-list
 A list that can be sorted
-** ggud-tree
-A tree, each node has a =[[ggud-list]]= (that can be sorted).
+** ggui-tree
+A tree, each node has a =[[ggui-list]]= (that can be sorted).
 * Methods
 * Docs
