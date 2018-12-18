@@ -62,19 +62,12 @@ Any user defined slot options will override these automatically generated ones."
               slot-list)
      ,@rest))
 
-(defmacro ggui-signal (signal-symbol str&args &rest data)
+(defmacro ggui-signal (signal-symbol str &rest args)
   "Signal SIGNAL-SYMBOL with helpful information.
 Basically a `signal' but the first data is a formatted string.
 
-For consistency with `signal', you still need to quote SIGNAL-SYMBO,
-event though this is a macro. You don't need to quote STR&ARGS.
-
-STR&ARGS is a list like (str &rest args) that can be passed into `format-message'.
-It works the same as `error'.
-
-You can pass normal DATA as if to `signal'."
-  `(signal ,signal-symbol (list (apply #'format-message (list ,@str&args))
-                                ,@data)))
+STR is format string, ARGS are like that in `format'."
+  `(signal ,signal-symbol (list (format-message ,str ,@args))))
 
 ;; FIXME I set it to :info for develop reason
 (defvar ggui-log-level :info
@@ -98,56 +91,44 @@ LEVEL is a symbol, can be :info :warn or :error."
 
 ;;; Error
 ;; TODO what error condition does this error belong to?
-(define-error 'pos-out-of-range "Position is out of the range of the buffer (pos showed after colon)")
+(define-error 'ggui-pos-out-of-range "Position is out of the range of the buffer (pos showed after colon)")
+(define-error 'ggui-buffer-missing "There is no such buffer" '(file-missing))
+(define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer))
 
 ;;; Class
-;;;; Position
-(cl-defstruct ggui-buffer-pos
-  "A position (line & column) in a buffer.
-:line is 0-based, :column is 0-based, :buffer is a buffer object.
-You can't use string for :buffer.
 
-DO NOT use `make-ggui-buffer-pos', use `ggui-buffer-pos' instead."
-  line column buffer)
+(defun ggui-goto (line column &optional buffer file)
+  "Go to POS in BUFFER or FILE.
+One of BUFFER or FILE has to be provided. If both presented, BUFFER is used.
 
-;; just to be even with file-pos
-(cl-defun ggui-buffer-pos (&key (line 0) (column 0) buffer path)
-  "Return a `ggui-buffer-pos'.
-
-* Arg
-- :LINE
-- :COLUMN
-- :BUFFER :: buffer or string
-- :PATH :: absolute path
-
-You can only have one of buffer or path, if both are passed,
-buffer is used.
-
-* Error
-- `file-missing'"
-  (if buffer
-      (make-ggui-buffer-pos :line line :column column :buffer buffer)
-    (if (file-exists-p path)
-        (make-ggui-buffer-pos :line line :column column :buffer )
-      (ggui-signal 'file-missing ("Path: %s" path)))))
-
-(cl-defmethod ggui-goto ((pos ggui-buffer-pos))
-  "Go to POS.
 * Args
-- POS :: the position.
+- LINE :: 0-based
+- COLUMN :: 0-based
+- BUFFER :: string or a buffer
+- FILE :: absolute path to file
 
 * Return
 nil
 
 * Error
-- `pos-out-of-range' :: if POS is out of the range of the buffer it's in."
-  (switch-to-buffer (ggui-buffer-pos-buffer pos))
+- `pos-out-of-range' :: if POS is out of the range of the buffer it's in.
+- `file-missing'
+- `buffer-missing'"
+  ;; switch to buffer/file
+  (cond (buffer  (switch-to-buffer (or (get-buffer buffer) (signal 'ggui-buffer-missing buffer))))
+        (file (find-file file)) ;; TODO find-file-literally?
+        (t (signal 'wrong-number-of-arguments (list "You need to supply either BUFFER or FILE, however, both are nil."))))
+  ;; go to position
   (goto-char 1)
   (condition-case-unless-debug nil
-      (progn (forward-line (ggui-buffer-pos-line pos))
-             (forward-char (ggui-buffer-pos-column pos))
+      (progn (forward-line line)
+             ;; dotimes is inclusive
+             (dotimes (var column)
+               (if (eq (char-after) ?\n)
+                   (signal 'ggui-end-of-line (list "LINE" line "in BUFFER" buffer "doesn't have COLUMN" column))
+                 (forward-char)))
              nil)
-    (end-of-buffer (signal 'pos-out-of-range (list "pos is:" pos)))))
+    (end-of-buffer (signal 'ggui-pos-out-of-range (list "LINE:" line "COLUMN:" column)))))
 
 
 (provide 'ggui)
