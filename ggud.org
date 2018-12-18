@@ -79,15 +79,6 @@ Top level node keeps a "tab stop list". Each entries, when displaying multiple c
 - Model :: debugger
 - View :: Emacs buffer, window, frame, text, ggud list, etc
 - Controller :: ggud-frame. Handles add break point, show stack, handles debugger events, etc.
-* Struct
-** ggui-pos
-Not really a struct. A cons with car being the line and cdr being the column.
-** ggui-buffer-pos
-You can make a buffer pos with a file path. The file will not be opened until the buffer point is used. The file path is checked when creating the buffer pos.
-A position(line & column) in a buffer.
-*** goto (pos ggui-buffer-pos)
-*** goto (line column &optional buffer file)
-** ggui-buffer-point
 * Class
 ** ggui-managed-buffer
 A wrapper around the primitive buffer. This is in case that I want to so some funky things to buffers. E.g., I can make it represent a buffer by a list of lines, making line operation fast (maybe).
