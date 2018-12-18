@@ -72,19 +72,49 @@ They can manage their place with overlay. Overlays are separated by line feed.
 Simple clear the buffer and insert everything whenever something changed. Maybe use a idle timer to apply several changes at once.
 *** Columns (managed by row)
 Top level node keeps a "tab stop list". Each entries, when displaying multiple columns, insert corresponding number of tabs between each column.
+** convenient buffer & window
+- maximize a window to take the full frame, and minimize back and restore previous layout
+- expand window in horizontal/vertical direction and shrink back and restore overridden window.
 * MVC model
 - Model :: debugger
 - View :: Emacs buffer, window, frame, text, ggud list, etc
 - Controller :: ggud-frame. Handles add break point, show stack, handles debugger events, etc.
-* Class
-** ggui-file-pos
-A position(line & column) in a file.
+* Struct
+** ggui-pos
+Not really a struct. A cons with car being the line and cdr being the column.
 ** ggui-buffer-pos
-A position(line & column) in a file.
+You can make a buffer pos with a file path. The file will not be opened until the buffer point is used. The file path is checked when creating the buffer pos.
+A position(line & column) in a buffer.
+*** goto (pos ggui-buffer-pos)
+*** goto (line column &optional buffer file)
+** ggui-buffer-point
+* Class
+** ggui-managed-buffer
+A wrapper around the primitive buffer. This is in case that I want to so some funky things to buffers. E.g., I can make it represent a buffer by a list of lines, making line operation fast (maybe).
+*** goto-line
+*** goto-pos
+*** insert-at-point
 ** ggui-range
-A range is represented by an overlay.
+A range is a range in a buffer. It is covered by an overlay (slot), and must have line feed in before and after it.
+*** beg
+*** end
+** ggui-view
+(ggui-range)
+
+A view is a range with a value.
+
+=:after= qualifiers of  [[update (this-view ggui-view)]] changes the  text display automatically when a subclass's instance changes the value of it text. So the subclass can forget about these details.
+
+It has a text slot to store the text. Subclasses, unaware of the slot at all, uses [[set-text (this-view ggui-view)]] to change it value.
+*** display (this-view ggui-view)
+*** remove (this-view gguid-view)
+*** set-text (this-view ggui-view)
+*** insert-before (this-view ggui-view) (another-view ggui-view)
+*** insert-after (this-view ggui-view) (another-view ggui-view)
 ** ggui-displayable
-Something can be represented by text. Maintain a list of =[[ggui-range]]= so update of text representation is propagated.
+(ggui-view)
+
+Have a view slot of type =ggui-view=.
 ** ggui-button
 A =[[ggui-displayable]]= that can be clicked.
 ** ggui-toggleable
@@ -93,7 +123,12 @@ Something that can be toggled between states. They can be toggled by ggud comman
 A =[[ggui-displayable]]= and =[[ggui-toggleable]]= that have two states: hide and show.
 ** ggui-list
 A list that can be sorted
+** recursive tree
+Provides method =recursive-apply=, with a function/method and arglist.
+The function is recursively applied to all the children of the node.
 ** ggui-tree
 A tree, each node has a =[[ggui-list]]= (that can be sorted).
 * Methods
+** ggui-remove (obj ggui-view) → nil
+Remove the all the text of =obj=.
 * Docs
