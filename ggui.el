@@ -27,7 +27,8 @@
 ;;
 
 ;;; Code:
-;;
+
+(require 'eieio)
 
 ;;; Helper
 
