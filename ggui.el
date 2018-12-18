@@ -90,10 +90,11 @@ LEVEL is a symbol, can be :info :warn or :error."
            args)))
 
 ;;; Error
+
 ;; TODO what error condition does this error belong to?
-(define-error 'ggui-pos-out-of-range "Position is out of the range of the buffer (pos showed after colon)")
-(define-error 'ggui-buffer-missing "There is no such buffer" '(file-missing))
-(define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer))
+(define-error 'ggui-pos-out-of-range "Position is out of the range of the buffer (pos showed after colon)" '(error))
+(define-error 'ggui-buffer-missing "There is no such buffer" '(file-missing error))
+(define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer error))
 
 ;;; Class
 
@@ -116,14 +117,14 @@ nil
 - `buffer-missing'"
   ;; switch to buffer/file
   (cond (buffer  (switch-to-buffer (or (get-buffer buffer) (signal 'ggui-buffer-missing buffer))))
-        (file (find-file file)) ;; TODO find-file-literally?
+        (file (if (file-exists-p file) (find-file file) (signal 'file-missing file))) ;; TODO find-file-literally?
         (t (signal 'wrong-number-of-arguments (list "You need to supply either BUFFER or FILE, however, both are nil."))))
   ;; go to position
   (goto-char 1)
-  (condition-case-unless-debug nil
+  (condition-case nil
       (progn (forward-line line)
              ;; dotimes is inclusive
-             (dotimes (var column)
+             (dotimes (_ column)
                (if (eq (char-after) ?\n)
                    (signal 'ggui-end-of-line (list "LINE" line "in BUFFER" buffer "doesn't have COLUMN" column))
                  (forward-char)))
