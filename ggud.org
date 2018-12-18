@@ -89,7 +89,7 @@ A wrapper around the primitive buffer. This is in case that I want to so some fu
 *** goto-pos
 *** insert-at-point
 ** ggui-range
-A range is a range in a buffer. It is covered by an overlay (slot), and must have line feed in before and after it.
+A range is a range in a buffer. It is covered by an overlay (slot), and must have line feed in the end. Set the overlay to not front advance and rear advance. With the ending line feed, overlays doesn't interfere each other.
 *** beg
 *** end
 ** ggui-view
