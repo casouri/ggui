@@ -80,7 +80,10 @@ Top level node keeps a "tab stop list". Each entries, when displaying multiple c
 - View :: Emacs buffer, window, frame, text, ggud list, etc
 - Controller :: ggud-frame. Handles add break point, show stack, handles debugger events, etc.
 * Class
-** ggui-managed-buffer
+** CANCEL ggui-managed-buffer
+   - Note taken on [2018-12-18 Tue 12:54] \\
+     Probably don't need it. insert before/after a view is good enough.
+
 A wrapper around the primitive buffer. This is in case that I want to so some funky things to buffers. E.g., I can make it represent a buffer by a list of lines, making line operation fast (maybe).
 *** goto-line
 *** goto-pos
