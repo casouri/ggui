@@ -135,6 +135,8 @@ nil
 
 ;;;; ggui-range
 
+;;;;; Class & init & helper
+
 (ggui-defclass ggui-range ()
   ((overlay
     :documentation "Private. The overlay covering the range.
@@ -145,7 +147,7 @@ Don't use `slot-value' on this, instead, use the accessor `ggui--overlay'."))
 (defun ggui-range-new (beg end &optional buffer property-list)
   "Return a `ggui-range' object from BEG to END in BUFFER.
 
-See `ggui-decode-pos' for options on BEG and END.
+Use current buffer if omitted.
 
 PROPERTY-LIST is a list of overlay property & value pairs.
 It looks like ((PROPERTY VALUE) (PROPERTY VALUE)...)."
@@ -154,46 +156,8 @@ It looks like ((PROPERTY VALUE) (PROPERTY VALUE)...)."
 (defun ggui-translate-pos (line column buffer)
   "Translate LINE:COLUMN in BUFFER to POS in BUFFER.
 Return (POS BUFFER)."
-  )
-
-(defun ggui-decode-pos (beg end &optional buffer)
-  "Translate BEG END and BUFFER.
-
-BEG and END can be:
-1. point
-2. a list like (LINE COLUMN), if LINE or COLUMN is nil, it will error.
-3. marker
-BEG and END don't have to be in the same category,
-but have to be in the same buffer (if specified).
-
-If BEG or END is marker, BUFFER is ignored.
-Use current buffer if BUFFER is nil.
-
-Return a list of (BEG END BUFFER)"
-  (let* ((beg&end ; process BEG and END and turn then into point
-          (mapcar
-           (lambda (pos) ; returns (pos . buffer)
-             (pcase pos
-               ((pred integerp) (when (<= pos 0) (signal 'invalid-argument (list "pos <= 0:" pos)))
-                (pos . nil))
-               ((pred listp) (cons (or (progn (ggui-goto (car pos) (cadr pos) buffer) (point))
-                                       (signal 'invalid-argument
-                                               (list "Invalid position list, should be (LINE COLUMN), got" pos)))
-                                   nil))
-               ((pred markerp) (cons (marker-position pos) (marker-buffer pos)))
-               (_ (signal 'invalid-argument
-                          (list "Invalid position, not point,list or marker, what IS this anyway?:" pos)))))
-           (list beg end))) ; with mapcar you get ((pos-beg . buffer) (pos-end . buffer)) where buffers could be nil
-         (beg0 (caar beg&end))
-         (end0 (caadr beg&end))
-         (buf-beg (cdar beg&end))
-         (buf-end (cdadr beg&end)))
-    ;; when both are valid buffer but point to different buffers.
-    ;; not use `buffer-live-p' to make is strict.
-    (when (and (not buf-beg) (not buf-end) (not (equal buf-beg buf-end)))
-      (signal 'invalid-argument
-              (list "BEG and END are from different buffers, BEG:" buf-beg "END:" buf-end)))
-    (list beg0 end0 (or buf-beg buf-end buffer (current-buffer)))))
+  (cons (progn (ggui-goto line column buffer) (point))
+        buffer))
 
 (defun ggui--make-overlay (beg end &optional buffer property-list)
   "Return an overlay from BEG to END in BUFFER.
@@ -202,14 +166,13 @@ See `ggui-decode-pos' for options on BEG and END.
 
 Use current buffer if BUFFER is nil.
 For PROPERTY-LIST see `ggui-range-new'."
-  (save-excursion
-    (let ((pos-list (ggui-decode-pos beg end buffer))
-          overlay)
-      ;; marker: insert in front: included, end: not included
-      (setq overlay (apply #'make-overlay pos-list))
-      (mapc (lambda (lst) (overlay-put overlay (car lst) (cadr lst)))
-            property-list)
-      overlay)))
+  (let ((overlay (make-overlay beg end buffer nil t)))
+    ;; marker: insert in front: included, end: included
+    (mapc (lambda (lst) (overlay-put overlay (car lst) (cadr lst)))
+          property-list)
+    overlay))
+
+;;;;; Beg & end & buffer
 
 (cl-defmethod ggui--beg-mark ((range ggui-range))
   "Return the beginning of RANGE as a marker."
@@ -246,6 +209,7 @@ For PROPERTY-LIST see `ggui-range-new'."
 If BEG, END or BUFFER omitted, don't change it.
 
 Return nil."
+  ;; basically create a new one, set values, delete the old one
   (let ((old-ov (ggui--overlay range))
         new-ov)
     (setq new-ov (ggui--make-overlay (or beg (overlay-start old-ov))
@@ -255,38 +219,60 @@ Return nil."
     (delete-overlay old-ov)) ; Don't forget to cleanup -- Izayoi Sakuya
   nil)
 
+;;;;; Delimiter
+
+(defun ggui--delimiter ()
+  "Return a delimiter."
+  (propertize "\n" 'invisible t 'ggui-delimeter t))
+
+(defun ggui--2delimiter ()
+  "Return two delimiter together."
+  (propertize "\n\n" 'invisible 'ggui-delimeter t))
+
+(defun ggui--insert-delimiter ()
+  "Insert a delimiter at point. Return nil."
+  (insert (ggui--delimeter))
+  nil)
+
+(defun ggui--insert-2delimiter ()
+  "Insert two delimiters at point. Return nil."
+  (insert (ggui--2delimiter))
+  nil)
+
+;;;;; Put/insert before/after
+
 (cl-defmethod ggui-put-before ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE doesn't cover STR.
 Return nil."
   (save-excursion
-    (goto-char (ggui--beg range))
-    (insert str)
-    (ggui-update-pos range (point)))
-  nil)
+    (goto-char (1- (ggui--beg range)))
+    ;; now we are between the two delimiters hiahiahia
+    (ggui--insert-2delimiter)
+    (backward-char)
+    (insert str)))
 
 (cl-defmethod ggui-put-after ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE doesn't cover STR.
 Return nil."
   (save-excursion
-    (goto-char (ggui--end range))
-    (insert str))
-  nil)
+    (goto-char (1+ (ggui--end range)))
+    (ggui--insert-2delimiter)
+    (forward-char)
+    (insert str)))
 
 (cl-defmethod ggui-insert-before ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE cover STR.
 Return nil."
   (save-excursion
     (goto-char (ggui--beg range))
-    (insert str))
-  nil)
+    (insert str)))
 
 (cl-defmethod ggui-insert-after ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE doesn't cover STR.
 Return nil."
   (save-excursion
-    (goto-char (ggui--beg range))
-    (insert str))
-  nil)
+    (goto-char (ggui--end range))
+    (insert str)))
 
 (provide 'ggui)
 
