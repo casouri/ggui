@@ -30,7 +30,7 @@
 
 (require 'eieio)
 
-;;; Helper
+;;;; Helper
 
 (defmacro ggui-defclass (classname superclass-list slot-list &rest rest)
   "A thin wrapper around `defclass'.
@@ -54,12 +54,13 @@ Any user defined slot options will override these automatically generated ones."
                           ;; takes precedents
                           (list :initarg
                                 (intern (format ":%s" slot-name))
-                                ;; :accessor
-                                ;; (intern (format "uikit-%s-of" slot-name))
-                                :reader
-                                (intern (format "gguir-%s" slot-name))
-                                :writer
-                                (intern (format "gguiw-%s" slot-name))))))
+                                :accessor
+                                (intern (format "ggui--%s" slot-name))
+                                ;; :reader
+                                ;; (intern (format "gguir-%s" slot-name))
+                                ;; :writer
+                                ;; (intern (format "gguiw-%s" slot-name))
+                                ))))
               slot-list)
      ,@rest))
 
@@ -90,22 +91,22 @@ LEVEL is a symbol, can be :info :warn or :error."
                    str)
            args)))
 
-;;; Error
+;;;; Error
 
 ;; TODO what error condition does this error belong to?
 (define-error 'ggui-pos-out-of-range "Position is out of the range of the buffer (pos showed after colon)" '(error))
 (define-error 'ggui-buffer-missing "There is no such buffer" '(file-missing error))
 (define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer error))
 
-;;; Class
+;;;; Etc
 
 (defun ggui-goto (line column &optional buffer file)
   "Go to POS in BUFFER or FILE.
 One of BUFFER or FILE has to be provided. If both presented, BUFFER is used.
 
 * Args
-- LINE :: 0-based
-- COLUMN :: 0-based
+- LINE :: 0-based, nil means 0
+- COLUMN :: 0-based, nil means 0
 - BUFFER :: string or a buffer
 - FILE :: absolute path to file
 
@@ -123,15 +124,169 @@ nil
   ;; go to position
   (goto-char 1)
   (condition-case nil
-      (progn (forward-line line)
+      (progn (forward-line (or line 0))
              ;; dotimes is inclusive
-             (dotimes (_ column)
+             (dotimes (_ (or column 0))
                (if (eq (char-after) ?\n)
                    (signal 'ggui-end-of-line (list "LINE" line "in BUFFER" buffer "doesn't have COLUMN" column))
                  (forward-char)))
              nil)
     (end-of-buffer (signal 'ggui-pos-out-of-range (list "LINE:" line "COLUMN:" column)))))
 
+;;;; ggui-range
+
+(ggui-defclass ggui-range ()
+  ((overlay
+    :documentation "Private. The overlay covering the range.
+Don't use `slot-value' on this, instead, use the accessor `ggui--overlay'."))
+  ;; It is covered by an overlay (slot), and must have line feed and after it (which is included).
+  "A range in a buffer.")
+
+(defun ggui-range-new (beg end &optional buffer property-list)
+  "Return a `ggui-range' object from BEG to END in BUFFER.
+
+See `ggui-decode-pos' for options on BEG and END.
+
+PROPERTY-LIST is a list of overlay property & value pairs.
+It looks like ((PROPERTY VALUE) (PROPERTY VALUE)...)."
+  (ggui-range :overlay (ggui--make-overlay beg end buffer property-list)))
+
+(defun ggui-translate-pos (line column buffer)
+  "Translate LINE:COLUMN in BUFFER to POS in BUFFER.
+Return (POS BUFFER)."
+  )
+
+(defun ggui-decode-pos (beg end &optional buffer)
+  "Translate BEG END and BUFFER.
+
+BEG and END can be:
+1. point
+2. a list like (LINE COLUMN), if LINE or COLUMN is nil, it will error.
+3. marker
+BEG and END don't have to be in the same category,
+but have to be in the same buffer (if specified).
+
+If BEG or END is marker, BUFFER is ignored.
+Use current buffer if BUFFER is nil.
+
+Return a list of (BEG END BUFFER)"
+  (let* ((beg&end ; process BEG and END and turn then into point
+          (mapcar
+           (lambda (pos) ; returns (pos . buffer)
+             (pcase pos
+               ((pred integerp) (when (<= pos 0) (signal 'invalid-argument (list "pos <= 0:" pos)))
+                (pos . nil))
+               ((pred listp) (cons (or (progn (ggui-goto (car pos) (cadr pos) buffer) (point))
+                                       (signal 'invalid-argument
+                                               (list "Invalid position list, should be (LINE COLUMN), got" pos)))
+                                   nil))
+               ((pred markerp) (cons (marker-position pos) (marker-buffer pos)))
+               (_ (signal 'invalid-argument
+                          (list "Invalid position, not point,list or marker, what IS this anyway?:" pos)))))
+           (list beg end))) ; with mapcar you get ((pos-beg . buffer) (pos-end . buffer)) where buffers could be nil
+         (beg0 (caar beg&end))
+         (end0 (caadr beg&end))
+         (buf-beg (cdar beg&end))
+         (buf-end (cdadr beg&end)))
+    ;; when both are valid buffer but point to different buffers.
+    ;; not use `buffer-live-p' to make is strict.
+    (when (and (not buf-beg) (not buf-end) (not (equal buf-beg buf-end)))
+      (signal 'invalid-argument
+              (list "BEG and END are from different buffers, BEG:" buf-beg "END:" buf-end)))
+    (list beg0 end0 (or buf-beg buf-end buffer (current-buffer)))))
+
+(defun ggui--make-overlay (beg end &optional buffer property-list)
+  "Return an overlay from BEG to END in BUFFER.
+
+See `ggui-decode-pos' for options on BEG and END.
+
+Use current buffer if BUFFER is nil.
+For PROPERTY-LIST see `ggui-range-new'."
+  (save-excursion
+    (let ((pos-list (ggui-decode-pos beg end buffer))
+          overlay)
+      ;; marker: insert in front: included, end: not included
+      (setq overlay (apply #'make-overlay pos-list))
+      (mapc (lambda (lst) (overlay-put overlay (car lst) (cadr lst)))
+            property-list)
+      overlay)))
+
+(cl-defmethod ggui--beg-mark ((range ggui-range))
+  "Return the beginning of RANGE as a marker."
+  (let ((overlay (ggui--overlay range)))
+    (set-marker (make-marker) (overlay-start overlay) (overlay-buffer overlay))))
+
+(cl-defmethod ggui--end-mark ((range ggui-range))
+  "Return the end of RANGE as a marker."
+  (let ((overlay (ggui--overlay range)))
+    (set-marker (make-marker) (overlay-end overlay) (overlay-buffer overlay))))
+
+(cl-defmethod ggui--beg ((range ggui-range))
+  "Return the beginning of RANGE as a point."
+  (overlay-start (ggui--overlay range)))
+
+(cl-defmethod (setf ggui--beg) (beg (range ggui-range))
+  "Set BEG of RANGE."
+  (ggui-update-pos range beg))
+
+(cl-defmethod ggui--end ((range ggui-range))
+  "Return the end of RANGE as a point."
+  (overlay-end (ggui--overlay range)))
+
+(cl-defmethod (setf ggui--end) (end (range ggui-range))
+  "Set END of RANGE."
+  (ggui-update-pos range end))
+
+(cl-defmethod ggui--buffer ((range ggui-range))
+  "Return the buffer of RANGE."
+  (overlay-buffer (ggui--overlay range)))
+
+(cl-defmethod ggui-update-pos ((range ggui-range) beg end &optional buffer)
+  "Update the range of RANGE to BEG to END in BUFFER.
+If BEG, END or BUFFER omitted, don't change it.
+
+Return nil."
+  (let ((old-ov (ggui--overlay range))
+        new-ov)
+    (setq new-ov (ggui--make-overlay (or beg (overlay-start old-ov))
+                                     (or end (overlay-end old-ov))
+                                     (or buffer (overlay-buffer old-ov))))
+    (setf (ggui--overlay range) new-ov)
+    (delete-overlay old-ov)) ; Don't forget to cleanup -- Izayoi Sakuya
+  nil)
+
+(cl-defmethod ggui-put-before ((range ggui-range) (str string))
+  "Insert STR in front of RANGE. RANGE doesn't cover STR.
+Return nil."
+  (save-excursion
+    (goto-char (ggui--beg range))
+    (insert str)
+    (ggui-update-pos range (point)))
+  nil)
+
+(cl-defmethod ggui-put-after ((range ggui-range) (str string))
+  "Insert STR in front of RANGE. RANGE doesn't cover STR.
+Return nil."
+  (save-excursion
+    (goto-char (ggui--end range))
+    (insert str))
+  nil)
+
+(cl-defmethod ggui-insert-before ((range ggui-range) (str string))
+  "Insert STR in front of RANGE. RANGE cover STR.
+Return nil."
+  (save-excursion
+    (goto-char (ggui--beg range))
+    (insert str))
+  nil)
+
+(cl-defmethod ggui-insert-after ((range ggui-range) (str string))
+  "Insert STR in front of RANGE. RANGE doesn't cover STR.
+Return nil."
+  (save-excursion
+    (goto-char (ggui--beg range))
+    (insert str))
+  nil)
 
 (provide 'ggui)
 
