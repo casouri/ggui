@@ -32,13 +32,13 @@
 
 ;;;; Helper
 
-(defmacro ggui-edit (&rest body)
+(defmacro ggui--edit (&rest body)
   "Set `inhibit-read-only' to t, and evaluate BODY.
 Also wrap `save-excursion' for convenience."
   `(let ((inhibit-read-only t))
      (save-excursion ,@body)))
 
-(defmacro ggui-edit-nosave (&rest body)
+(defmacro ggui--edit-nosave (&rest body)
   "Set `inhibit-read-only' to t, and evaluate BODY.
 But don't wrap `save-excursion.'"
   `(let ((inhibit-read-only t))
@@ -87,7 +87,7 @@ STR is format string, ARGS are like that in `format'."
 (defvar ggui-log-level :info
   "Log level of ggui, can be :error, :warning or :info.")
 
-(defvar ggui--log-level-plist '(:error 3 :warning 2 :info 1)
+(defvar ggui--log-level-plist '(:error 3 :warn 2 :info 1)
   "Plist used to know which level is more bad ass.")
 
 (defun ggui-log (level str &rest args)
@@ -99,7 +99,7 @@ LEVEL is a symbol, can be :info :warn or :error."
     (apply #'message
            (format "GGUI %s %s: %s"
                    (format-time-string "%Y-%m-%d %T" (current-time))
-                   (plist-get '(:warn "Warning" :error "Error" :info "Info") level)
+                   (plist-get '(:warn "Warn" :error "Error" :info "Info") level)
                    str)
            args)))
 
@@ -152,12 +152,14 @@ nil
 
 (ggui-defclass ggui-view ()
   ((overlay
+    :type (satisfies overlayp)
     :documentation "Private. The overlay covering the range.
 Don't use `slot-value' on this, instead, use the accessor `ggui--overlay'.")
    (text
+    :type string
     :documentation "Public. The text of the view."))
   ;; It is covered by an overlay (slot), and must have line feed and after it (which is included).
-  "A range in a buffer.
+  "A piece of overlay-managed text.
 Public slot: text
 Virtual slot:
 - beg           R&W
@@ -181,7 +183,7 @@ for overlay properties to add to the result."
   "Return t if VIEW is inserted into some buffer, nil if not."
   ;; if the overlay is in tmp buffer, it is no present.
   (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
-
+n
 (defun ggui--translate-pos (line column buffer)
   "Translate LINE:COLUMN in BUFFER to POS in BUFFER.
 Return (POS BUFFER)."
@@ -245,7 +247,7 @@ Return nil."
     (setq new-ov (apply #'ggui--make-overlay
                         (or beg (overlay-start old-ov))
                         (or end (overlay-end old-ov))
-                        (or buffer (overlay-buffer old-ov))
+                        buffer
                         (overlay-properties old-ov)))
     (setf (ggui--overlay view) new-ov)
     (delete-overlay old-ov)) ; Don't forget to cleanup -- Izayoi Sakuya
@@ -259,17 +261,17 @@ Return nil."
 
 (defun ggui--2delimiter ()
   "Return two delimiter together."
-  (propertize "\n\n" 'invisible 'ggui-delimeter t))
+  (propertize "\n\n" 'invisible t 'ggui-delimeter t))
 
 (defun ggui--insert-delimiter ()
   "Insert a delimiter at point. Return nil.
 When return, point is at the end of the delimiters."
-  (ggui-edit-nosave (insert (ggui--delimeter))))
+  (ggui--edit-nosave (insert (ggui--delimeter))))
 
 (defun ggui--insert-2delimiter ()
   "Insert two delimiters at point. Return nil.
 When return, point is at the end of delimiters."
-  (ggui-edit-nosave (insert (ggui--2delimiter))))
+  (ggui--edit-nosave (insert (ggui--2delimiter))))
 
 ;;;;; Put/insert before/after
 
@@ -291,7 +293,7 @@ Should: one and only one before point, one and only one after point."
 (cl-defmethod ggui-put-before ((view ggui-view) (str string))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
-  (ggui-edit
+  (ggui--edit
    (goto-char (1- (ggui--beg view)))
    ;; now we are between the two delimiters
    (ggui--check-delimiter)
@@ -302,7 +304,7 @@ Return nil."
 (cl-defmethod ggui-put-after ((view ggui-view) (str string))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
-  (ggui-edit
+  (ggui--edit
    (goto-char (1+ (ggui--end view)))
    (ggui--check-delimiter)
    (ggui--insert-2delimiter)
@@ -312,14 +314,14 @@ Return nil."
 (cl-defmethod ggui-insert-before ((view ggui-view) (str string))
   "Insert STR in front of VIEW. VIEW cover STR.
 Return nil."
-  (ggui-edit
+  (ggui--edit
    (goto-char (ggui--beg view))
    (insert str)))
 
 (cl-defmethod ggui-insert-after ((view ggui-view) (str string))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
-  (ggui-edit
+  (ggui--edit
    (goto-char (ggui--end view))
    (insert str)))
 
@@ -328,7 +330,7 @@ Return nil."
 (cl-defmethod ggui-put-before ((view ggui-view) (aview ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
-  (ggui-edit
+  (ggui--edit
    (goto-char (1- (ggui--beg view)))
    ;; now we are between the two delimiters
    (ggui--check-delimiter)
@@ -340,13 +342,74 @@ Return nil."
 (cl-defmethod ggui-put-after ((view ggui-view) (aview ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
-  (ggui-edit
+  (ggui--edit
    (goto-char (1+ (ggui--end view)))
    (ggui--check-delimiter)
    (ggui--insert-2delimiter)
    (forward-char)
    (ggui--move-overlay aview (point) (point))
    (insert (ggui-text aview))))
+
+;;;;; Remove
+(cl-defmethod ggui-remove-display ((view ggui-view))
+  "Remove VIEW's presence from buffer."
+  (ggui--edit
+   (let (beg end)
+     ;; check left
+     (goto-char (ggui--beg-mark view))
+     (backward-char)
+     (ggui--check-delimiter)
+     (setq beg (point))
+     ;; check right
+     (goto-char (ggui--end))
+     (forward-char)
+     (ggui--check-delimiter)
+     (setq end (point))
+     ;; move overlay and remove text
+     (ggui--move-overlay view 1 1 (get-buffer-create " *ggui-tmp*"))
+     (delete-region beg end))))
+
+;;;; buffer
+
+(defvar-local ggui--setup nil
+  "Whether current buffer is setup.")
+(defvar-local ggui--top-view nil
+  "The top most (invisible) view of buffer.")
+(defvar-local ggui--bottom-view nil
+  "The bottom most (invisible) view of buffer.")
+(defconst ggui--top-text "T" "(Invisible) text of `ggui--top-view'.")
+(defconst ggui--bottom-text "B" "(Invisible) text of `ggui--bottom-view'.")
+(defconst ggui-point-min 3
+  "Point 1 is `ggui--top-text', point 2 is a delimiter, point 3 is another delimiter,
+point 4 is the first (user defined) view.")
+
+(defun ggui--setup-buffer (buffer)
+  "Setup BUFFER. BUFFER can be either a string or a buffer."
+  (let ((buffer (cond ((bufferp buffer) buffer)
+                      ((stringp buffer) (get-buffer-create buffer))
+                      (t (signal 'invalid-argument (list "BUFFER is not a buffer nor a string" buffer))))))
+    (unless (buffer-live-p buffer) (signal 'ggui-buffer-missing (list "BUFFER is not a live buffer" buffer)))
+    ;; setup
+    (if ggui--setup
+        (ggui-log :warn "Buffer %S already set up but someone try to set up again." buffer)
+      ;; we manually insert view text and setup overlay
+      (with-current-buffer buffer
+        (ggui--edit
+         (erase-buffer)
+         (setq ggui--top-view (ggui-view-new ggui--top-text 'invisible t))
+         (setq ggui--bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
+         ;; insert T\n\nB
+         (goto-char 1)
+         (insert (ggui--text ggui--top-view))
+         (ggui--insert-2delimiter)
+         (insert (ggui--text ggui--bottom-view))
+         ;; put overlay
+         (ggui--move-overlay ggui--top-view 1 2)
+         (ggui--move-overlay ggui--bottom-view 4 5)
+         (setq ggui--setup t)))))
+  nil)
+
+;;;; Provide
 
 (provide 'ggui)
 
