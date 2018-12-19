@@ -32,6 +32,18 @@
 
 ;;;; Helper
 
+(defmacro ggui-edit (&rest body)
+  "Set `inhibit-read-only' to t, and evaluate BODY.
+Also wrap `save-excursion' for convenience."
+  `(let ((inhibit-read-only t))
+     (save-excursion ,@body)))
+
+(defmacro ggui-edit-nosave (&rest body)
+  "Set `inhibit-read-only' to t, and evaluate BODY.
+But don't wrap `save-excursion.'"
+  `(let ((inhibit-read-only t))
+     ,@body))
+
 (defmacro ggui-defclass (classname superclass-list slot-list &rest rest)
   "A thin wrapper around `defclass'.
 Expands to (defclass CLASSNAME SUPERCLASS-LIST SLOT-LIST REST).
@@ -230,49 +242,49 @@ Return nil."
   (propertize "\n\n" 'invisible 'ggui-delimeter t))
 
 (defun ggui--insert-delimiter ()
-  "Insert a delimiter at point. Return nil."
-  (insert (ggui--delimeter))
-  nil)
+  "Insert a delimiter at point. Return nil.
+When return, point is at the end of the delimiters."
+  (ggui-edit-nosave (insert (ggui--delimeter))))
 
 (defun ggui--insert-2delimiter ()
-  "Insert two delimiters at point. Return nil."
-  (insert (ggui--2delimiter))
-  nil)
+  "Insert two delimiters at point. Return nil.
+When return, point is at the end of delimiters."
+  (ggui-edit-nosave (insert (ggui--2delimiter))))
 
 ;;;;; Put/insert before/after
 
 (cl-defmethod ggui-put-before ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE doesn't cover STR.
 Return nil."
-  (save-excursion
-    (goto-char (1- (ggui--beg range)))
-    ;; now we are between the two delimiters hiahiahia
-    (ggui--insert-2delimiter)
-    (backward-char)
-    (insert str)))
+  (ggui-edit
+   (goto-char (1- (ggui--beg range)))
+   ;; now we are between the two delimiters hiahiahia
+   (ggui--insert-2delimiter)
+   (backward-char)
+   (insert str)))
 
 (cl-defmethod ggui-put-after ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE doesn't cover STR.
 Return nil."
-  (save-excursion
-    (goto-char (1+ (ggui--end range)))
-    (ggui--insert-2delimiter)
-    (forward-char)
-    (insert str)))
+  (ggui-edit
+   (goto-char (1+ (ggui--end range)))
+   (ggui--insert-2delimiter)
+   (forward-char)
+   (insert str)))
 
 (cl-defmethod ggui-insert-before ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE cover STR.
 Return nil."
-  (save-excursion
-    (goto-char (ggui--beg range))
-    (insert str)))
+  (ggui-edit
+   (goto-char (ggui--beg range))
+   (insert str)))
 
 (cl-defmethod ggui-insert-after ((range ggui-range) (str string))
   "Insert STR in front of RANGE. RANGE doesn't cover STR.
 Return nil."
-  (save-excursion
-    (goto-char (ggui--end range))
-    (insert str)))
+  (ggui-edit
+   (goto-char (ggui--end range))
+   (insert str)))
 
 (provide 'ggui)
 
