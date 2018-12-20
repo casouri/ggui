@@ -110,6 +110,7 @@ LEVEL is a symbol, can be :info :warn or :error."
 (define-error 'ggui-buffer-missing "There is no such buffer" '(file-missing error))
 (define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer error))
 (define-error 'ggui-delimiter-misplace "A ggui delimiter should/should not be here." '(error))
+(define-error 'ggui-prohibit-edit "This edition is not allowed" '(error))
 
 ;;;; Etc
 
@@ -284,26 +285,26 @@ Should: one and only one before point, one and only one after point."
 (cl-defmethod ggui-put-before :before ((view ggui-view) stuff)
   "Check for misuse."
   (when (eq ggui--top-view view)
-    (signal 'invalid-argument (list "Nothing can be put before a `ggui--top-view', you try to put" stuff))))
+    (signal 'ggui-prohibit-edit (list "Nothing can be put before a `ggui--top-view', you try to put:" stuff))))
 
 (cl-defmethod ggui-put-after :before ((view ggui-view) stuff)
   "Check for misuse."
   (when (eq ggui--bottom-view view)
-    (signal 'invalid-arg (list "Nothing can be put after a `ggui--bottom-view', you try to put" stuff))))
+    (signal 'ggui-prohibit-edit (list "Nothing can be put after a `ggui--bottom-view', you try to put:" stuff))))
 
 (cl-defmethod ggui-insert-before :before ((view ggui-view) stuff)
   "Check for misuse."
   (when (eq ggui--top-view view)
-    (signal 'invalid-argument (list "Nothing can be inserted before a `ggui--top-view', you try to insert" stuff)))
+    (signal 'ggui-prohibit-edit (list "Nothing can be inserted before a `ggui--top-view', you try to insert:" stuff)))
   (when (eq ggui--bottom-view view)
-    (signal 'invalid-argument (list "Nothing can be inserted before a `ggui--bottom-view', you try to insert" stuff))))
+    (signal 'ggui-prohibit-edit (list "Nothing can be inserted before a `ggui--bottom-view', you try to insert:" stuff))))
 
 (cl-defmethod ggui-insert-after :before ((view ggui-view) stuff)
   "Check for misuse."
   (when (eq ggui--top-view view)
-    (signal 'invalid-argument (list "Nothing can be inserted after a `ggui--top-view', you try to insert" stuff)))
+    (signal 'ggui-prohibit-edit (list "Nothing can be inserted after a `ggui--top-view', you try to insert:" stuff)))
   (when (eq ggui--bottom-view view)
-    (signal 'invalid-argument (list "Nothing can be inserted after a `ggui--bottom-view', you try to insert" stuff))))
+    (signal 'ggui-prohibit-edit (list "Nothing can be inserted after a `ggui--bottom-view', you try to insert:" stuff))))
 
 ;;;;;; String
 
