@@ -79,9 +79,9 @@ It also wraps everything in `save-excursion' for convenience."
         (should (eq 'good (plist-get (overlay-properties (ggui--overlay view1)) 'woomy)))
         (should (eq 'nice (plist-get (overlay-properties (ggui--overlay view1)) 'veemo)))
         ;; put
-        (ggui-put-after ggui--top-view view1)
+        (ggui-put-after view1 ggui--top-view)
         (should (equal "T\n\nhi\n\nB" (buffer-string)))
-        (ggui-put-before ggui--bottom-view view2)
+        (ggui-put-before view2 ggui--bottom-view)
         (should (equal "T\n\nhi\n\nyo\n\nB" (buffer-string)))
         ;; remove
         (ggui--remove-display view1)
@@ -90,8 +90,8 @@ It also wraps everything in `save-excursion' for convenience."
         (setf (ggui--text view2) "yooooo")
         (should (equal "T\n\nyooooo\n\nB" (buffer-string)))
         ;; error
-        (should-error (ggui-put-before ggui--top-view "?"))
-        (should-error (ggui-put-after ggui--bottom-view "?"))))))
+        (should-error (ggui-put-before "!" ggui--top-view))
+        (should-error (ggui-put-after "!" ggui--bottom-view))))))
 
 (ert-deftest ggui-seq ()
   (ggui-test-with-buffer (buf1)
@@ -105,7 +105,7 @@ It also wraps everything in `save-excursion' for convenience."
         ;; setup
         (ggui--setup-buffer buf1)
         ;; put after
-        (ggui-put-after ggui--top-view seq)
+        (ggui-put-after seq ggui--top-view)
         (should (equal "T\n\nwoomy\n\nveemo\n\nfresh\n\nB" (buffer-string)))
         ;; put at 3rd place
         (ggui-put-at view99 seq 2)
@@ -116,6 +116,8 @@ It also wraps everything in `save-excursion' for convenience."
         (ggui-delete view2 seq)
         (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nB" (buffer-string)))
         (should (equal seq (list view1 view99 view3)))
-        ))))
+        ;; put view to seq
+        (ggui-put-after view2 seq)
+        (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nveemo\n\nB" (buffer-string)))))))
 
 ;;; ggui-test ends here
