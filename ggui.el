@@ -527,7 +527,7 @@ If N is negative, toggle backward N times."
       (ggui--overlay-put view 'invisible nil)
     (signal 'ggui-view-not-present)))
 
-;;;; Seq of view
+;;;; List of view
 
 (cl-defmethod ggui-insert-at (obj (seq list) n)
   "Simply insert OBJ into SEQ at N.
