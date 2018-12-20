@@ -88,14 +88,12 @@ A wrapper around the primitive buffer. This is in case that I want to so some fu
 *** goto-line
 *** goto-pos
 *** insert-at-point
-** ggui-range
+** CANCEL ggui-range
 A range is a range in a buffer. It is covered by an overlay (slot). Between each range, there are two special invisible line feed. New range can be easily inserted between the two special line feed without affecting the overlays on both sides.
 *** beg
 *** end
 ** ggui-view
-(ggui-range)
-
-A view is a range with a value.
+A view is a piece text with overlay over it.
 
 =:after= qualifiers of  [[update (this-view ggui-view)]] changes the  text display automatically when a subclass's instance changes the value of it text. So the subclass can forget about these details.
 
@@ -127,5 +125,5 @@ A tree, each node has a =[[ggui-list]]= (that can be sorted).
 Remove the all the text of =obj=.
 * Docs
 * TODOs
-** TODO Revice decode-pos
+** DONE Revise decode-pos
 add a function turns (line col) into markers, ditch decode
