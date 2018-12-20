@@ -580,6 +580,21 @@ Return nil."
       (setq last-right this)))
   nil)
 
+(cl-defmethod ggui-put-after ((seq list) (view ggui-view))
+  "Put every view in SEQ after VIEW, in normal order.
+E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
+ Return nil."
+  (let ((last-left view)
+        (index 0)
+        (len (length seq))
+        this)
+    (while (< index len)
+      (setq this (nth index seq))
+      (cl-incf index)
+      (ggui-put-after this last-left)
+      (setq last-left this)))
+  nil)
+
 ;; view to seq
 (cl-defmethod ggui-put-before ((view ggui-view) (seq list))
   "Put VIEW before the first element of SEQ.
