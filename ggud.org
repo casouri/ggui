@@ -95,9 +95,7 @@ A range is a range in a buffer. It is covered by an overlay (slot). Between each
 ** ggui-view
 A view is a piece text with overlay over it.
 
-=:after= qualifiers of  [[update (this-view ggui-view)]] changes the  text display automatically when a subclass's instance changes the value of it text. So the subclass can forget about these details.
-
-It has a text slot to store the text. Subclasses, unaware of the slot at all, uses [[set-text (this-view ggui-view)]] to change it value.
+Changes the  text display automatically when a subclass's instance changes the value of it text. So the subclass can forget about these details.
 *** display (this-view ggui-view)
 *** remove (this-view gguid-view)
 *** set-text (this-view ggui-view)
@@ -107,7 +105,7 @@ It has a text slot to store the text. Subclasses, unaware of the slot at all, us
 (ggui-view)
 
 Have a view slot of type =ggui-view=.
-** ggui-button
+** CANCEL ggui-button
 A =[[ggui-displayable]]= that can be clicked.
 ** ggui-toggleable
 Something that can be toggled between states. They can be toggled by ggud command =[[ggui-toggle-at-point]]=.
@@ -127,3 +125,5 @@ Remove the all the text of =obj=.
 * TODOs
 ** DONE Revise decode-pos
 add a function turns (line col) into markers, ditch decode
+
+** TODO insert string before/after view returns a overlay over the string
