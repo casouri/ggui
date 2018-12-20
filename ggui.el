@@ -392,6 +392,17 @@ Return nil."
    (ggui--move-overlay aview (point) (point))
    (insert (ggui--text aview))))
 
+;;;;;;; Remove before insert
+
+(cl-defmethod ggui-put-before :before ((_ ggui-view) (aview ggui-view))
+  "Remove AVIEW's display before adding it."
+  (when (ggui--presentp aview) (ggui--remove-display aview)))
+
+(cl-defmethod ggui-put-after :before ((_ ggui-view) (aview ggui-view))
+  "Remove AVIEW's display before adding it."
+  (when (ggui--presentp aview) (ggui--remove-display aview)))
+
+
 ;;;;; Remove
 (cl-defmethod ggui--remove-display ((view ggui-view))
   "Remove VIEW's presence from buffer."
