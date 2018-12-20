@@ -552,8 +552,8 @@ Return nil."
     ;; same as above, when adding, view's display is removed
     (delete view seq))
   (let ((len (length seq)))
-    (cond ((= n len) (ggui-put-after (last seq) view))
-          ((< n len) (ggui-put-before (elt seq n) view))
+    (cond ((= n len) (ggui-put-after view (car (last seq))))
+          ((< n len) (ggui-put-before view (elt seq n)))
           (t (signal 'args-out-of-range "SEQ is:" seq "N is:" n))))
   (ggui-insert-at view seq n)
   nil)
@@ -572,19 +572,17 @@ Return nil."
       (setq last-right this)))
   nil)
 
-(cl-defmethod ggui-put-after ((view ggui-view) (seq list))
-  "Put every view in SEQ after VIEW, in normal order.
-E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
+;; view to seq
+(cl-defmethod ggui-put-before ((view ggui-view) (seq list))
+  "Put VIEW before the first element of SEQ.
 Return nil."
-  (let ((last-left view)
-        (index 0)
-        (len (length seq))
-        this)
-    (while (< index len)
-      (setq this (nth index seq))
-      (ggui-put-after last-left this)
-      (setq last-left this)
-      (cl-incf index)))
+  (ggui-put-before view (car seq))
+  nil)
+
+(cl-defmethod ggui-put-after ((view ggui-view) (seq list))
+  "Put VIEW after the last element of SEQ.
+Return nil."
+  (ggui-put-after view (car (last seq)))
   nil)
 
 (cl-defmethod ggui-append ((seq1 list) (seq2 list))
