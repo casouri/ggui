@@ -315,19 +315,19 @@ Should: one and only one before point, one and only one after point."
   (when (eq ggui--top-view view)
     (signal 'ggui-prohibit-edit (list "Nothing can be put before a `ggui--top-view', you try to put:" stuff))))
 
-(cl-defmethod ggui-put-after :before ((view ggui-view) stuff)
+(cl-defmethod ggui-put-after :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--bottom-view view)
     (signal 'ggui-prohibit-edit (list "Nothing can be put after a `ggui--bottom-view', you try to put:" stuff))))
 
-(cl-defmethod ggui-insert-before :before ((view ggui-view) stuff)
+(cl-defmethod ggui-insert-before :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--top-view view)
     (signal 'ggui-prohibit-edit (list "Nothing can be inserted before a `ggui--top-view', you try to insert:" stuff)))
   (when (eq ggui--bottom-view view)
     (signal 'ggui-prohibit-edit (list "Nothing can be inserted before a `ggui--bottom-view', you try to insert:" stuff))))
 
-(cl-defmethod ggui-insert-after :before ((view ggui-view) stuff)
+(cl-defmethod ggui-insert-after :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--top-view view)
     (signal 'ggui-prohibit-edit (list "Nothing can be inserted after a `ggui--top-view', you try to insert:" stuff)))
@@ -336,7 +336,7 @@ Should: one and only one before point, one and only one after point."
 
 ;;;;;; String
 
-(cl-defmethod ggui-put-before ((view ggui-view) (str string))
+(cl-defmethod ggui-put-before ((str string) (view ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
   (ggui--edit
@@ -347,7 +347,7 @@ Return nil."
    (backward-char)
    (insert str)))
 
-(cl-defmethod ggui-put-after ((view ggui-view) (str string))
+(cl-defmethod ggui-put-after ((str string) (view ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
   (ggui--edit
@@ -357,14 +357,14 @@ Return nil."
    (forward-char)
    (insert str)))
 
-(cl-defmethod ggui-insert-before ((view ggui-view) (str string))
+(cl-defmethod ggui-insert-before ((str string) (view ggui-view))
   "Insert STR in front of VIEW. VIEW cover STR.
 Return nil."
   (ggui--edit
    (goto-char (ggui--beg view))
    (insert str)))
 
-(cl-defmethod ggui-insert-after ((view ggui-view) (str string))
+(cl-defmethod ggui-insert-after ((str string) (view ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
   (ggui--edit
@@ -373,7 +373,7 @@ Return nil."
 
 ;;;;;; View
 
-(cl-defmethod ggui-put-before ((view ggui-view) (aview ggui-view))
+(cl-defmethod ggui-put-before ((aview ggui-view) (view ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
   (ggui--edit
@@ -387,7 +387,7 @@ Return nil."
    (ggui--move-overlay aview (point) (point))
    (insert (ggui--text aview))))
 
-(cl-defmethod ggui-put-after ((view ggui-view) (aview ggui-view))
+(cl-defmethod ggui-put-after ((aview ggui-view) (view ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
 Return nil."
   (ggui--edit
@@ -400,11 +400,11 @@ Return nil."
 
 ;;;;;;; Remove before insert
 
-(cl-defmethod ggui-put-before :before ((_ ggui-view) (aview ggui-view))
+(cl-defmethod ggui-put-before :before ((aview ggui-view) (_ ggui-view))
   "Remove AVIEW's display before adding it."
   (when (ggui--presentp aview) (ggui--remove-display aview)))
 
-(cl-defmethod ggui-put-after :before ((_ ggui-view) (aview ggui-view))
+(cl-defmethod ggui-put-after :before ((aview ggui-view) (_ ggui-view))
   "Remove AVIEW's display before adding it."
   (when (ggui--presentp aview) (ggui--remove-display aview)))
 
@@ -558,7 +558,8 @@ Return nil."
   (ggui-insert-at view seq n)
   nil)
 
-(cl-defmethod ggui-put-before ((view ggui-view) (seq list))
+;; seq to view
+(cl-defmethod ggui-put-before ((seq list) (view ggui-view))
   "Put every view in SEQ before VIEW, in normal order.
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
 Return nil."
@@ -567,7 +568,7 @@ Return nil."
         this)
     (while reverse
       (setq this (pop reverse))
-      (ggui-put-before last-right this)
+      (ggui-put-before this last-right)
       (setq last-right this)))
   nil)
 
