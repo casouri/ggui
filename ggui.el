@@ -169,6 +169,12 @@ Virtual slot:
 - buffer        R
 - property-list R&W")
 
+(cl-defmethod cl-print-object ((view ggui-view) &rest str)
+  (apply #'cl-call-next-method
+         view
+         (format " OVERLAY: %S TEXT: %s" (ggui--overlay view) (ggui--text view))
+         str))
+
 (defun ggui-view-new (text &rest property-list)
   "Return a `ggui-view' object with TEXT.
 
