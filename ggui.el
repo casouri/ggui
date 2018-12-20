@@ -111,6 +111,7 @@ LEVEL is a symbol, can be :info :warn or :error."
 (define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer error))
 (define-error 'ggui-delimiter-misplace "A ggui delimiter should/should not be here." '(error))
 (define-error 'ggui-prohibit-edit "This edition is not allowed" '(error))
+(define-error 'ggui-view-not-present "This view is not on any buffer." '(error))
 
 ;;;; Etc
 
