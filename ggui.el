@@ -203,6 +203,15 @@ for overlay properties to add to the result."
       (overlay-put overlay (pop property-list) (pop property-list)))
     overlay))
 
+(cl-defmethod (setf ggui--text) :after (text (view ggui-view))
+  "Update display in buffer."
+  (when (ggui--presentp view)
+    (with-current-buffer (ggui--buffer view)
+      (ggui--edit
+       (goto-char (ggui--beg view))
+       (delete-region (ggui--beg view) (ggui--end view))
+       (insert text)))))
+
 ;;;;; Beg & end & buffer
 
 ;; enable if they are actually needed
