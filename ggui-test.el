@@ -73,6 +73,12 @@ It also wraps everything in `save-excursion' for convenience."
         ;; setup
         (ggui--setup-buffer buf1)
         (should (equal "T\n\nB" (buffer-string)))
+        ;; overlay property
+        (should (eq (plist-get (overlay-properties (ggui--overlay view1)) 'ggui-view)
+                    view1))
+        (ggui--overlay-put view1 'woomy 'good 'veemo 'nice)
+        (should (eq 'good (plist-get (overlay-properties (ggui--overlay view1)) 'woomy)))
+        (should (eq 'nice (plist-get (overlay-properties (ggui--overlay view1)) 'veemo)))
         ;; put
         (ggui-put-after ggui--top-view view1)
         (should (equal "T\n\nhi\n\nB" (buffer-string)))

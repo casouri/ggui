@@ -174,11 +174,13 @@ Virtual slot:
 PROPERTY-LIST:
 Remaining arguments form a sequence of PROPERTY VALUE pairs
 for overlay properties to add to the result."
-  (ggui-view :text text
-             :overlay (apply #'ggui--make-overlay
-                             1 1
-                             (get-buffer-create " *ggui-tmp*")
-                             property-list)))
+  (let ((view (ggui-view :text text
+                         :overlay (apply #'ggui--make-overlay
+                                         1 1
+                                         (get-buffer-create " *ggui-tmp*")
+                                         property-list))))
+    (overlay-put (ggui--overlay view) 'ggui-view view)
+    view))
 
 (cl-defmethod ggui--presentp ((view ggui-view))
   "Return t if VIEW is inserted into some buffer, nil if not."
@@ -237,6 +239,16 @@ for overlay properties to add to the result."
 (cl-defmethod ggui--buffer ((view ggui-view))
   "Return the buffer of VIEW."
   (overlay-buffer (ggui--overlay view)))
+
+(cl-defmethod ggui--overlay-put ((view ggui-view) &rest property-list)
+  "Put properties to VIEW's overlay.
+Remaining arguments form a sequence of PROPERTY VALUE pairs
+for overlay properties to add to the result.
+Return nil."
+  (let ((overlay (ggui--overlay view)))
+    (while property-list
+      (overlay-put overlay (pop property-list) (pop property-list)))
+    nil))
 
 (cl-defmethod ggui--move-overlay ((view ggui-view) beg end &optional buffer)
   "Move overlay of VIEW to BEG END in BUFFER.
