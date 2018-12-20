@@ -183,7 +183,7 @@ for overlay properties to add to the result."
   "Return t if VIEW is inserted into some buffer, nil if not."
   ;; if the overlay is in tmp buffer, it is no present.
   (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
-n
+
 (defun ggui--translate-pos (line column buffer)
   "Translate LINE:COLUMN in BUFFER to POS in BUFFER.
 Return (POS BUFFER)."
@@ -193,7 +193,6 @@ Return (POS BUFFER)."
 (defun ggui--make-overlay (beg end &optional buffer &rest property-list)
   "Return an overlay from BEG to END in BUFFER.
 
-See `ggui-decode-pos' for options on BEG and END.
 Use current buffer if BUFFER is nil. PROPERTY-LIST:
 Remaining arguments form a sequence of PROPERTY VALUE pairs
 for overlay properties to add to the result."
@@ -207,35 +206,27 @@ for overlay properties to add to the result."
 
 ;; enable if they are actually needed
 
-;; (cl-defmethod ggui--beg-mark ((view ggui-view))
-;;   "Return the beginning of VIEW as a marker."
-;;   (let ((overlay (ggui--overlay view)))
-;;     (set-marker (make-marker) (overlay-start overlay) (overlay-buffer overlay))))
+(cl-defmethod ggui--beg-mark ((view ggui-view))
+  "Return the beginning of VIEW as a marker."
+  (let ((overlay (ggui--overlay view)))
+    (set-marker (make-marker) (overlay-start overlay) (overlay-buffer overlay))))
 
-;; (cl-defmethod ggui--end-mark ((view ggui-view))
-;;   "Return the end of VIEW as a marker."
-;;   (let ((overlay (ggui--overlay view)))
-;;     (set-marker (make-marker) (overlay-end overlay) (overlay-buffer overlay))))
+(cl-defmethod ggui--end-mark ((view ggui-view))
+  "Return the end of VIEW as a marker."
+  (let ((overlay (ggui--overlay view)))
+    (set-marker (make-marker) (overlay-end overlay) (overlay-buffer overlay))))
 
-;; (cl-defmethod ggui--beg ((view ggui-view))
-;;   "Return the beginning of VIEW as a point."
-;;   (overlay-start (ggui--overlay view)))
+(cl-defmethod ggui--beg ((view ggui-view))
+  "Return the beginning of VIEW as a point."
+  (overlay-start (ggui--overlay view)))
 
-;; (cl-defmethod (setf ggui--beg) (beg (view ggui-view))
-;;   "Set BEG of VIEW."
-;;   (ggui-move-overlay view beg))
+(cl-defmethod ggui--end ((view ggui-view))
+  "Return the end of VIEW as a point."
+  (overlay-end (ggui--overlay view)))
 
-;; (cl-defmethod ggui--end ((view ggui-view))
-;;   "Return the end of VIEW as a point."
-;;   (overlay-end (ggui--overlay view)))
-
-;; (cl-defmethod (setf ggui--end) (end (view ggui-view))
-;;   "Set END of VIEW."
-;;   (ggui-move-overlay view end))
-
-;; (cl-defmethod ggui--buffer ((view ggui-view))
-;;   "Return the buffer of VIEW."
-;;   (overlay-buffer (ggui--overlay view)))
+(cl-defmethod ggui--buffer ((view ggui-view))
+  "Return the buffer of VIEW."
+  (overlay-buffer (ggui--overlay view)))
 
 (cl-defmethod ggui--move-overlay ((view ggui-view) beg end &optional buffer)
   "Move overlay of VIEW to BEG END in BUFFER.
@@ -257,16 +248,16 @@ Return nil."
 
 (defun ggui--delimiter ()
   "Return a delimiter."
-  (propertize "\n" 'invisible t 'ggui-delimeter t))
+  (propertize "\n" 'invisible t 'ggui-delimiter t))
 
 (defun ggui--2delimiter ()
   "Return two delimiter together."
-  (propertize "\n\n" 'invisible t 'ggui-delimeter t))
+  (propertize "\n\n" 'invisible t 'ggui-delimiter t))
 
 (defun ggui--insert-delimiter ()
   "Insert a delimiter at point. Return nil.
 When return, point is at the end of the delimiters."
-  (ggui--edit-nosave (insert (ggui--delimeter))))
+  (ggui--edit-nosave (insert (ggui--delimiter))))
 
 (defun ggui--insert-2delimiter ()
   "Insert two delimiters at point. Return nil.
@@ -275,18 +266,44 @@ When return, point is at the end of delimiters."
 
 ;;;;; Put/insert before/after
 
-(defun ggui--check-delimiter (&optional no-left no-right)
+(defun ggui--check-delimiter ()
   "Check if delimiters are correctly setup.
 Should: one and only one before point, one and only one after point."
   (let ((point (point)))
-    (cond ((not (member 'ggui-delimiter (text-properties-at (1- point))))
+    (cond ((not (plist-get (text-properties-at (1- point)) 'ggui-delimiter))
            (signal 'ggui-delimiter-misplace (list "Left delimiter is missing, point at" point "delimiter should be at" (1- point))))
-          ((member 'ggui-delimiter (text-properties-at (- point 2)))
+          ((plist-get (text-properties-at (- point 2)) 'ggui-delimiter)
            (signal 'ggui-delimiter-misplace (list "Extra delimiter left to left delimiter, point at" point "extra delimiter point at" (- point 2))))
-          ((not (member 'ggui-delimiter (text-properties-at point)))
+          ((not (plist-get (text-properties-at point) 'ggui-delimiter))
            (signal 'ggui-delimiter-misplace (list "Right delimiter is missing, point at" point "delimiter should be at" point)))
-          ((member 'ggui-delimiter (text-properties-at (1+ point)))
+          ((plist-get (text-properties-at (1+ point)) 'ggui-delimiter)
            (signal 'ggui-delimiter-misplace (list "Extra delimiter right to right delimiter, point at" point "extra delimiter point at" (1+ point)))))))
+
+;;;;;; Check
+
+(cl-defmethod ggui-put-before :before ((view ggui-view) stuff)
+  "Check for misuse."
+  (when (eq ggui--top-view view)
+    (signal 'invalid-argument (list "Nothing can be put before a `ggui--top-view', you try to put" stuff))))
+
+(cl-defmethod ggui-put-after :before ((view ggui-view) stuff)
+  "Check for misuse."
+  (when (eq ggui--bottom-view view)
+    (signal 'invalid-arg (list "Nothing can be put after a `ggui--bottom-view', you try to put" stuff))))
+
+(cl-defmethod ggui-insert-before :before ((view ggui-view) stuff)
+  "Check for misuse."
+  (when (eq ggui--top-view view)
+    (signal 'invalid-argument (list "Nothing can be inserted before a `ggui--top-view', you try to insert" stuff)))
+  (when (eq ggui--bottom-view view)
+    (signal 'invalid-argument (list "Nothing can be inserted before a `ggui--bottom-view', you try to insert" stuff))))
+
+(cl-defmethod ggui-insert-after :before ((view ggui-view) stuff)
+  "Check for misuse."
+  (when (eq ggui--top-view view)
+    (signal 'invalid-argument (list "Nothing can be inserted after a `ggui--top-view', you try to insert" stuff)))
+  (when (eq ggui--bottom-view view)
+    (signal 'invalid-argument (list "Nothing can be inserted after a `ggui--bottom-view', you try to insert" stuff))))
 
 ;;;;;; String
 
@@ -336,8 +353,10 @@ Return nil."
    (ggui--check-delimiter)
    (ggui--insert-2delimiter)
    (backward-char)
+   ;; TODO: investigate into invisible overlay:
+   ;; does front/rear advance work as normal?
    (ggui--move-overlay aview (point) (point))
-   (insert (ggui-text aview))))
+   (insert (ggui--text aview))))
 
 (cl-defmethod ggui-put-after ((view ggui-view) (aview ggui-view))
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
@@ -346,12 +365,12 @@ Return nil."
    (goto-char (1+ (ggui--end view)))
    (ggui--check-delimiter)
    (ggui--insert-2delimiter)
-   (forward-char)
+   (backward-char)
    (ggui--move-overlay aview (point) (point))
-   (insert (ggui-text aview))))
+   (insert (ggui--text aview))))
 
 ;;;;; Remove
-(cl-defmethod ggui-remove-display ((view ggui-view))
+(cl-defmethod ggui--remove-display ((view ggui-view))
   "Remove VIEW's presence from buffer."
   (ggui--edit
    (let (beg end)
@@ -361,7 +380,7 @@ Return nil."
      (ggui--check-delimiter)
      (setq beg (point))
      ;; check right
-     (goto-char (ggui--end))
+     (goto-char (ggui--end view))
      (forward-char)
      (ggui--check-delimiter)
      (setq end (point))
@@ -390,14 +409,14 @@ point 4 is the first (user defined) view.")
                       (t (signal 'invalid-argument (list "BUFFER is not a buffer nor a string" buffer))))))
     (unless (buffer-live-p buffer) (signal 'ggui-buffer-missing (list "BUFFER is not a live buffer" buffer)))
     ;; setup
-    (if ggui--setup
-        (ggui-log :warn "Buffer %S already set up but someone try to set up again." buffer)
-      ;; we manually insert view text and setup overlay
-      (with-current-buffer buffer
+    (with-current-buffer buffer
+      (if ggui--setup
+          (ggui-log :warn "Buffer %S already set up but someone try to set up again." buffer)
+        ;; we manually insert view text and setup overlay
         (ggui--edit
          (erase-buffer)
-         (setq ggui--top-view (ggui-view-new ggui--top-text 'invisible t))
-         (setq ggui--bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
+         (setq-local ggui--top-view (ggui-view-new ggui--top-text 'invisible t))
+         (setq-local ggui--bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
          ;; insert T\n\nB
          (goto-char 1)
          (insert (ggui--text ggui--top-view))
