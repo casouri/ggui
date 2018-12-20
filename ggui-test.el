@@ -42,8 +42,7 @@ It also wraps everything in `save-excursion' for convenience."
 (ert-deftest ggui-defclass ()
   (should t))
 
-;;; Class
-;;;; Position
+;;; Test
 (ert-deftest ggui-goto ()
   (ggui-test-with-buffer (buffer buffer1)
     (let ()
@@ -93,5 +92,30 @@ It also wraps everything in `save-excursion' for convenience."
         ;; error
         (should-error (ggui-put-before ggui--top-view "?"))
         (should-error (ggui-put-after ggui--bottom-view "?"))))))
+
+(ert-deftest ggui-seq ()
+  (ggui-test-with-buffer (buf1)
+    (let* ((view1 (ggui-view-new "woomy"))
+           (view2 (ggui-view-new "veemo"))
+           (view3 (ggui-view-new "fresh"))
+           (seq (list view1 view2 view3))
+           (view99 (ggui-view-new "loove")))
+      (with-current-buffer buf1
+        (should (equal (list view1 view2) (list view1 view2)))
+        ;; setup
+        (ggui--setup-buffer buf1)
+        ;; put after
+        (ggui-put-after ggui--top-view seq)
+        (should (equal "T\n\nwoomy\n\nveemo\n\nfresh\n\nB" (buffer-string)))
+        ;; put at 3rd place
+        (ggui-put-at view99 seq 2)
+        (print seq)
+        (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nB" (buffer-string)))
+        (should (equal seq (list view1 view2 view99 view3)))
+        ;; delete veemo
+        (ggui-delete view2 seq)
+        (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nB" (buffer-string)))
+        (should (equal seq (list view1 view99 view3)))
+        ))))
 
 ;;; ggui-test ends here

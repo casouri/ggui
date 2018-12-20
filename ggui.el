@@ -521,6 +521,74 @@ If N is negative, toggle backward N times."
       (ggui--overlay-put view 'invisible nil)
     (signal 'ggui-view-not-present)))
 
+;;;; Seq of view
+
+(cl-defmethod ggui-insert-at (obj (seq list) n)
+  "Simply insert OBJ into SEQ at N.
+If N is larger than length of SEQ, signal `args-out-of-range'.
+Return nil."
+  (when (or (> n (length seq))
+            (< n 0)) (signal 'args-out-of-range "SEQ is:" seq "N is:" n))
+  (setf (nthcdr n seq) (cons obj (nthcdr n seq)))
+  nil)
+
+;; We don't need to remove view before adding it because
+;; it is done automatically for us in `ggui-put-after/before'
+
+(cl-defmethod ggui-put-at ((view ggui-view) (seq list) n)
+  "Put VIEW at N in SEQ (a list of `ggui-view's).
+VIEW is not added again if it's already in seq,
+instead, it is moved to N.
+If N is larger than length of SEQ, signal `args-out-of-range'.
+Return nil."
+  ;; remove if present
+  (when (member view seq)
+    ;; same as above, when adding, view's display is removed
+    (delete view seq))
+  (let ((len (length seq)))
+    (cond ((= n len) (ggui-put-after (last seq) view))
+          ((< n len) (ggui-put-before (elt seq n) view))
+          (t (signal 'args-out-of-range "SEQ is:" seq "N is:" n))))
+  (ggui-insert-at view seq n)
+  nil)
+
+(cl-defmethod ggui-put-before ((view ggui-view) (seq list))
+  "Put every view in SEQ before VIEW, in normal order.
+E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
+Return nil."
+  (let ((reverse (reverse seq))
+        (last-right view)
+        this)
+    (while reverse
+      (setq this (pop reverse))
+      (ggui-put-before last-right this)
+      (setq last-right this)))
+  nil)
+
+(cl-defmethod ggui-put-after ((view ggui-view) (seq list))
+  "Put every view in SEQ after VIEW, in normal order.
+E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
+Return nil."
+  (let ((last-left view)
+        (index 0)
+        (len (length seq))
+        this)
+    (while (< index len)
+      (setq this (nth index seq))
+      (ggui-put-after last-left this)
+      (setq last-left this)
+      (cl-incf index)))
+  nil)
+
+(cl-defmethod ggui-append ((seq1 list) (seq2 list))
+  "Append two list of `ggui-view's and return the merged list."
+  (ggui-put-after (last seq1) seq2)
+  (append seq1 seq2))
+
+(cl-defmethod ggui-delete ((view ggui-view) (seq list))
+  "Remove VIEW from SEQ."
+  (ggui--remove-display view)
+  (delete view seq))
 ;;;; Provide
 
 (provide 'ggui)
