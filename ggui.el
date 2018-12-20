@@ -492,7 +492,7 @@ point 4 is the first (user defined) view.")
 
 (cl-defgeneric ggui-toggle-to (_ state-index)
   "Toggle to the STATE-INDEX th state of the toggleable."
-  (signal 'cl-no-applicable-method "STATE-INDEX is" state-index))
+  (signal 'cl-no-applicable-method (list "STATE-INDEX is" state-index)))
 
 (defun ggui-toggle-at-point (n)
   "Toggle the stuff at point (if it relates to a ggui object).
@@ -554,7 +554,7 @@ Return nil."
   (let ((len (length seq)))
     (cond ((= n len) (ggui-put-after view (car (last seq))))
           ((< n len) (ggui-put-before view (elt seq n)))
-          (t (signal 'args-out-of-range "SEQ is:" seq "N is:" n))))
+          (t (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n)))))
   (ggui-insert-at view seq n)
   nil)
 
