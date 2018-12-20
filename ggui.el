@@ -451,6 +451,65 @@ point 4 is the first (user defined) view.")
          (setq ggui--setup t)))))
   nil)
 
+;;;;; ggui-object-at-point
+
+(defun ggui-object-at-point ()
+  "Return the ggui object at point."
+  (interactive)
+  (catch 'found
+    (if ggui--setup
+        (dolist (ov (overlays-at (point)))
+          (when-let ((obj (plist-get (overlay-properties ov) 'ggui-view)))
+            (throw 'found obj)))
+      (message "No ggui related object at point"))))
+
+;;;; Toggleable
+
+(cl-defgeneric ggui-toggle-forward (_)
+  "Toggle the object's state forward."
+  (signal 'cl-no-applicable-method))
+
+(cl-defgeneric ggui-toggle-backward (_)
+  "Toggle the object's state backward."
+  (signal 'cl-no-applicable-method))
+
+(cl-defgeneric ggui-toggle-to (_ state-index)
+  "Toggle to the STATE-INDEX th state of the toggleable."
+  (signal 'cl-no-applicable-method "STATE-INDEX is" state-index))
+
+(defun ggui-toggle-at-point (n)
+  "Toggle the stuff at point (if it relates to a ggui object).
+If provided with numeric prefix argument, toggle forward N times.
+If N is negative, toggle backward N times."
+  (interactive "p")
+  (when-let ((obj (ggui-object-at-point)))
+    (dotimes (_ (abs n))
+      (if (>= n 0)
+          (ggui-toggle-forward obj)
+        (ggui-toggle-back obj)))))
+
+;;;; Hideshow
+
+(cl-defgeneric ggui-hide (_)
+  "Hide the display.")
+
+(cl-defgeneric ggui-show (_)
+  "Show the display.")
+
+(defclass ggui-hideshow (ggui-view)
+  ()
+  "View can hide/show.")
+
+(cl-defmethod ggui-hide ((view ggui-hideshow))
+  (if (ggui--presentp view)
+      (ggui--overlay-put view 'invisible t)
+    (signal 'ggui-view-not-present)))
+
+(cl-defmethod ggui-show ((view ggui-hideshow))
+  (if (ggui--presentp view)
+      (ggui--overlay-put view 'invisible nil)
+    (signal 'ggui-view-not-present)))
+
 ;;;; Provide
 
 (provide 'ggui)
