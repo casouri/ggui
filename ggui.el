@@ -159,7 +159,10 @@ nil
 Don't use `slot-value' on this, instead, use the accessor `ggui--overlay'.")
    (text
     :type string
-    :documentation "Public. The text of the view."))
+    :documentation "Public. The text of the view.")
+   (property-list
+    :documentation "Dummy slot used by init: (PROP VALUE PROP VALUE).
+Use `ggui--overlay-put' to add properties to overlay."))
   ;; It is covered by an overlay (slot), and must have line feed and after it (which is included).
   "A piece of overlay-managed text.
 Public slot: text
@@ -175,19 +178,22 @@ Virtual slot:
          (format " OVERLAY: %S TEXT: %s" (ggui--overlay view) (ggui--text view))
          str))
 
+(cl-defmethod initialize-instance :after ((view ggui-view) &rest _)
+  "Setup overlay and property."
+  (setf (ggui--overlay view)
+        (apply #'ggui--make-overlay
+               1 1 (get-buffer-create " *ggui-tmp*")
+               (ggui--property-list view)))
+  (overlay-put (ggui--overlay view) 'ggui-view view)
+  (slot-makeunbound view 'property-list))
+
 (defun ggui-view-new (text &rest property-list)
   "Return a `ggui-view' object with TEXT.
 
 PROPERTY-LIST:
 Remaining arguments form a sequence of PROPERTY VALUE pairs
 for overlay properties to add to the result."
-  (let ((view (ggui-view :text text
-                         :overlay (apply #'ggui--make-overlay
-                                         1 1
-                                         (get-buffer-create " *ggui-tmp*")
-                                         property-list))))
-    (overlay-put (ggui--overlay view) 'ggui-view view)
-    view))
+  (ggui-view :text text :property-list property-list))
 
 (cl-defmethod ggui--presentp ((view ggui-view))
   "Return t if VIEW is inserted into some buffer, nil if not."
