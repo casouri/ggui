@@ -551,16 +551,19 @@ Return the modified seq."
 VIEW is not added again if it's already in seq,
 instead, it is moved to N.
 If N is larger than length of SEQ, signal `args-out-of-range'.
+If N is negative, put at last N position.
 Return nil."
   ;; remove if present
   (when (member view seq)
     ;; same as above, when adding, view's display is removed
     (delete view seq))
-  (let ((len (length seq)))
-    (cond ((= n len) (ggui-put-after view (car (last seq))))
-          ((< n len) (ggui-put-before view (elt seq n)))
-          (t (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n)))))
-  (ggui-insert-at view seq n)
+  (let ((len (length seq))
+        (nn (if (>= n 0) n
+              (+ (length seq) n 1)))) ; same as insert-at
+    (cond ((= nn len) (ggui-put-after view (car (last seq))))
+          ((< nn len) (ggui-put-before view (elt seq nn)))
+          (t (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n))))
+    (ggui-insert-at view seq nn))
   nil)
 
 ;; seq to view
