@@ -532,11 +532,16 @@ If N is negative, toggle backward N times."
 (cl-defmethod ggui-insert-at (obj (seq list) n)
   "Simply insert OBJ into SEQ at N.
 If N is larger than length of SEQ, signal `args-out-of-range'.
-Return nil."
-  (when (or (> n (length seq))
-            (< n 0)) (signal 'args-out-of-range "SEQ is:" seq "N is:" n))
-  (setf (nthcdr n seq) (cons obj (nthcdr n seq)))
-  nil)
+If N is negative, insert at last Nth position.
+Return the modified seq."
+  (let ((nn (if (>= n 0) n ; translate negative index n to positive
+              (+ (length seq) n 1)))) ; n=-1 -> nn=len, n=-2 -> nn=(len - 1)
+    ;; check
+    (when (or (> nn (length seq))
+              (< nn 0)) (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n)))
+    ;; insert
+    (setf (nthcdr nn seq) (cons obj (nthcdr nn seq))))
+  seq)
 
 ;; We don't need to remove view before adding it because
 ;; it is done automatically for us in `ggui-put-after/before'
