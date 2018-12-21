@@ -619,8 +619,12 @@ Return nil."
   (ggui-put-after (car (last seq1)) seq2)
   (append seq1 seq2))
 
-(cl-defmethod ggui-delete ((view ggui-view) (seq list))
-  "Remove VIEW from SEQ."
+(cl-defmethod ggui-delete (view (seq list))
+  "Remove VIEW from SEQ.
+VIEW can be either a `ggui-view' or a list of them"
+  (unless (or (cl-typep view 'ggui-view)
+              (cl-typep view 'list))
+    (signal 'invalid-argument (list "Only ggui-view or list accepted for VIEW, you gave:" view)))
   (ggui--remove-display view)
   (delete view seq))
 ;;;; Provide
