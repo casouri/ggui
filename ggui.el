@@ -172,7 +172,7 @@ Virtual slot:
 - buffer        R
 - property-list R&W")
 
-(cl-defmethod cl-print-object ((view ggui-view) &rest str)
+(cl-defmethod object-print ((view ggui-view) &rest str)
   (apply #'cl-call-next-method
          view
          (format " OVERLAY: %S TEXT: %s" (ggui--overlay view) (ggui--text view))
@@ -605,6 +605,7 @@ Return nil."
 (cl-defmethod ggui-put-after ((seq list) (view ggui-view))
   "Put every view in SEQ after VIEW, in normal order.
 E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
+This function is recursive.
  Return nil."
   (let ((last-left view)
         (index 0)
