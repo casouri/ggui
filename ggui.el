@@ -616,7 +616,7 @@ Return nil."
 
 (cl-defmethod ggui-append ((seq1 list) (seq2 list))
   "Append two list of `ggui-view's and return the merged list."
-  (ggui-put-after (last seq1) seq2)
+  (ggui-put-after (car (last seq1)) seq2)
   (append seq1 seq2))
 
 (cl-defmethod ggui-delete ((view ggui-view) (seq list))
