@@ -547,6 +547,9 @@ If N is negative, toggle backward N times."
 (cl-defmethod ggui-seq-append ((seq1 list) (seq2 list))
   (append seq1 seq2))
 
+(cl-defgeneric ggui-insert-at (elt seq n)
+  "Insert ELT into SEQ at Nth position.")
+
 (defsubst ggui--regulate-index (n len)
   "Regulates positive/negative argument N for sequence of LEN."
   (if (>= n 0) n ; translate negative index n to positive
