@@ -643,6 +643,30 @@ VIEW can be either a `ggui-view' or a list of them"
     (signal 'invalid-argument (list "Only ggui-view or list accepted for VIEW, you gave:" view)))
   (ggui--remove-display view)
   (delete view seq))
+
+(cl-defmethod ggui-put-under-at ((view ggui-view) (node cons) n)
+  "Put VIEW under NODE at position N.
+N can be positive or negative."
+  (ggui-put-at view (cdr node) n))
+
+;; TOTEST
+;; TODO; is this useful?
+(cl-defmethod ggui-apply-tree (func (node cons) &rest args)
+  "Apply FUNC with NODE and ARGS recursively.
+Depth first, left first."
+  (let ((car (car node))
+        (cdr (cdr node)))
+    (apply #'ggui-apply-tree func car args)
+    (apply func car args)
+    (when cdr
+      (apply #'ggui-apply-tree func cdr args)
+      (apply func cdr args))))
+
+(cl-defmethod ggui--remove-display ((seq list))
+  "Remove display of SEQ.
+This function is recursive."
+  (mapc #'ggui--remove-display seq))
+
 ;;;; Provide
 
 (provide 'ggui)
