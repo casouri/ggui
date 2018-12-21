@@ -99,7 +99,9 @@ It also wraps everything in `save-excursion' for convenience."
            (view2 (ggui-view-new "veemo"))
            (view3 (ggui-view-new "fresh"))
            (seq (list view1 view2 view3))
-           (view99 (ggui-view-new "loove")))
+           (view99 (ggui-view-new "loove"))
+           (view98 (ggui-view-new "mary"))
+           (ssq (list seq view98)))
       (with-current-buffer buf1
         (should (equal (list view1 view2) (list view1 view2)))
         ;; setup
@@ -118,6 +120,22 @@ It also wraps everything in `save-excursion' for convenience."
         (should (equal seq (list view1 view99 view3)))
         ;; put view to seq
         (ggui-put-after view2 seq)
-        (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nveemo\n\nB" (buffer-string)))))))
+        (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nveemo\n\nB" (buffer-string)))
+        ;; remove seq's display
+        (ggui--remove-display seq)
+        (should (equal "T\n\nveemo\n\nB" (buffer-string)))
+        ;; list of list
+        (ggui-put-after ssq view2)
+        (should (equal "T\n\nveemo\n\nwoomy\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
+        ;; car of ssq is seq, put at 2nd position
+        (ggui-put-at view2 (car ssq) 1)
+        (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
+        ;; edit a element from a list
+        (setf (ggui--text (nth 2 seq)) "love")
+        (should (equal "T\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nmary\n\nB" (buffer-string)))
+        ;; put seq at somewhere in ssq
+        (ggui-put-at seq ssq -1)
+        (should (equal "T\n\nmary\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nB" (buffer-string)))
+        ))))
 
 ;;; ggui-test ends here
