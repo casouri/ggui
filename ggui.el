@@ -533,17 +533,23 @@ If N is negative, toggle backward N times."
       (ggui--overlay-put view 'invisible nil)
     (signal 'ggui-view-not-present)))
 
-;;;; List of view
+;;;; List and tree
+
+(defsubst ggui--regulate-index (n len)
+  "Regulates positive/negative argument N for sequence of LEN."
+  (if (>= n 0) n ; translate negative index n to positive
+    ;; n=-1 -> nn=len, n=-2 -> nn=(len - 1)
+    (+ len n 1)))
 
 (cl-defmethod ggui-insert-at (obj (seq list) n)
   "Simply insert OBJ into SEQ at N.
 If N is larger than length of SEQ, signal `args-out-of-range'.
 If N is negative, insert at last Nth position.
 Return the modified seq."
-  (let ((nn (if (>= n 0) n ; translate negative index n to positive
-              (+ (length seq) n 1)))) ; n=-1 -> nn=len, n=-2 -> nn=(len - 1)
+  (let* ((len (length seq))
+         (nn (ggui--regulate-index n len)))
     ;; check
-    (when (or (> nn (length seq))
+    (when (or (> nn len)
               (< nn 0)) (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n)))
     ;; insert
     (setf (nthcdr nn seq) (cons obj (nthcdr nn seq))))
