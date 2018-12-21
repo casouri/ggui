@@ -535,6 +535,18 @@ If N is negative, toggle backward N times."
 
 ;;;; List and tree
 
+(cl-defgeneric ggui-seq-delete (elt seq)
+  "Delete ELT from SEQ.")
+
+(cl-defmethod ggui-seq-delete (elt (seq list))
+  (delete elt seq))
+
+(cl-defgeneric ggui-seq-append (seq1 seq2)
+  "Append seq and seq2.")
+
+(cl-defmethod ggui-seq-append ((seq1 list) (seq2 list))
+  (append seq1 seq2))
+
 (defsubst ggui--regulate-index (n len)
   "Regulates positive/negative argument N for sequence of LEN."
   (if (>= n 0) n ; translate negative index n to positive
@@ -546,7 +558,7 @@ If N is negative, toggle backward N times."
 If N is larger than length of SEQ, signal `args-out-of-range'.
 If N is negative, insert at last Nth position.
 Return the modified seq."
-  (let* ((len (length seq))
+  (let* ((len (seq-length seq))
          (nn (ggui--regulate-index n len)))
     ;; check
     (when (or (> nn len)
@@ -576,13 +588,13 @@ Return SEQ."
               (cl-typep view 'list))
     (signal 'invalid-argument (list "Only ggui-view or list accepted for VIEW, you gave:" view)))
   ;; remove if present
-  (when (member view seq)
+  (when (seq-find (lambda (elt) (equal elt view)) seq nil)
     ;; same as above, when adding, view's display is removed
     (ggui-delete view seq))
-  (let* ((len (length seq))
+  (let* ((len (seq-length seq))
          (nn (ggui--regulate-index n len)))
-    (cond ((= nn len) (ggui-put-after view (car (last seq))))
-          ((< nn len) (ggui-put-before view (elt seq nn)))
+    (cond ((= nn len) (ggui-put-after view (seq-elt seq (1- len))))
+          ((< nn len) (ggui-put-before view (seq-elt seq nn)))
           (t (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n))))
     (ggui-insert-at view seq nn))
   seq)
@@ -593,11 +605,14 @@ Return SEQ."
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
 This function is recursive.
 Return nil."
-  (let ((reverse (reverse seq))
-        (last-right view)
+  (let ((last-right view)
+        index
+        (len (seq-length seq))
         this)
-    (while reverse
-      (setq this (pop reverse))
+    (seq index (1- len))
+    (while (>= index 0)
+      (setq this (seq-elt seq index))
+      (cl-decf index)
       (ggui-put-before this last-right)
       (setq last-right this)))
   nil)
@@ -609,10 +624,10 @@ This function is recursive.
  Return nil."
   (let ((last-left view)
         (index 0)
-        (len (length seq))
+        (len (seq-length seq))
         this)
     (while (< index len)
-      (setq this (nth index seq))
+      (setq this (seq-elt seq index))
       (cl-incf index)
       (ggui-put-after this last-left)
       (setq last-left this)))
@@ -622,19 +637,19 @@ This function is recursive.
 (cl-defmethod ggui-put-before ((view ggui-view) (seq list))
   "Put VIEW before the first element of SEQ.
 Return nil."
-  (ggui-put-before view (car seq))
+  (ggui-put-before view (seq-elt seq 0))
   nil)
 
 (cl-defmethod ggui-put-after ((view ggui-view) (seq list))
   "Put VIEW after the last element of SEQ.
 Return nil."
-  (ggui-put-after view (car (last seq)))
+  (ggui-put-after view (seq-elt seq (1- (seq-length seq))))
   nil)
 
 (cl-defmethod ggui-append ((seq1 list) (seq2 list))
   "Append two list of `ggui-view's and return the merged list."
-  (ggui-put-after (car (last seq1)) seq2)
-  (append seq1 seq2))
+  (ggui-put-after (seq-elt seq1 (1- (seq-length seq1))) seq2)
+  (ggui-seq-append seq1 seq2))
 
 (cl-defmethod ggui-delete (view (seq list))
   "Remove VIEW from SEQ.
@@ -643,7 +658,7 @@ VIEW can be either a `ggui-view' or a list of them"
               (cl-typep view 'list))
     (signal 'invalid-argument (list "Only ggui-view or list accepted for VIEW, you gave:" view)))
   (ggui--remove-display view)
-  (delete view seq))
+  (ggui-seq-delete view seq))
 
 (cl-defmethod ggui-put-under-at ((view ggui-view) (node cons) n)
   "Put VIEW under NODE at position N.
@@ -666,7 +681,7 @@ Depth first, left first."
 (cl-defmethod ggui--remove-display ((seq list))
   "Remove display of SEQ.
 This function is recursive."
-  (mapc #'ggui--remove-display seq))
+  (seq-map #'ggui--remove-display seq))
 
 ;;;; Provide
 
