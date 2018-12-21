@@ -558,30 +558,40 @@ Return the modified seq."
 ;; We don't need to remove view before adding it because
 ;; it is done automatically for us in `ggui-put-after/before'
 
-(cl-defmethod ggui-put-at ((view ggui-view) (seq list) n)
+(cl-defmethod ggui-put-at (view (seq list) n)
   "Put VIEW at N in SEQ (a list of `ggui-view's).
 VIEW is not added again if it's already in seq,
 instead, it is moved to N.
 If N is larger than length of SEQ, signal `args-out-of-range'.
 If N is negative, put at last N position.
-Return nil."
+E.g., -1 is the end of SEQ.
+
+VIEW can be either `ggui-view' or a list of them,
+or a list of list of them, etc.
+
+Unlike `ggui-put-before/after',
+this function changes SEQ because it adds VIEW into it.
+Return SEQ."
+  (unless (or (cl-typep view 'ggui-view)
+              (cl-typep view 'list))
+    (signal 'invalid-argument (list "Only ggui-view or list accepted for VIEW, you gave:" view)))
   ;; remove if present
   (when (member view seq)
     ;; same as above, when adding, view's display is removed
-    (delete view seq))
-  (let ((len (length seq))
-        (nn (if (>= n 0) n
-              (+ (length seq) n 1)))) ; same as insert-at
+    (ggui-delete view seq))
+  (let* ((len (length seq))
+         (nn (ggui--regulate-index n len)))
     (cond ((= nn len) (ggui-put-after view (car (last seq))))
           ((< nn len) (ggui-put-before view (elt seq nn)))
           (t (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n))))
     (ggui-insert-at view seq nn))
-  nil)
+  seq)
 
 ;; seq to view
 (cl-defmethod ggui-put-before ((seq list) (view ggui-view))
   "Put every view in SEQ before VIEW, in normal order.
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
+This function is recursive.
 Return nil."
   (let ((reverse (reverse seq))
         (last-right view)
