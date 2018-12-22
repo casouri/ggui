@@ -537,24 +537,24 @@ If N is negative, toggle backward N times."
 ;;
 ;; Implement these generic functions for sequence:
 ;;
-;; ggui-seq-delete
-;; ggui-seq-append
+;; ggui-delete
+;; ggui-append
 ;; ggui-insert-at
 ;; seq-elt
 ;; seq-find
 ;; seq-length
 ;; (setf seq-elt)
 
-(cl-defgeneric ggui-seq-delete (elt seq)
+(cl-defgeneric ggui-delete (elt seq)
   "Delete ELT from SEQ.")
 
-(cl-defmethod ggui-seq-delete (elt (seq list))
+(cl-defmethod ggui-delete (elt (seq list))
   (delete elt seq))
 
-(cl-defgeneric ggui-seq-append (seq1 seq2)
+(cl-defgeneric ggui-append (seq1 seq2)
   "Append seq and seq2.")
 
-(cl-defmethod ggui-seq-append ((seq1 list) (seq2 list))
+(cl-defmethod ggui-append ((seq1 list) (seq2 list))
   (append seq1 seq2))
 
 (cl-defgeneric ggui-insert-at (elt seq n)
@@ -662,16 +662,15 @@ Return nil."
 (cl-defmethod ggui-append ((seq1 sequence) (seq2 sequence))
   "Append two list of `ggui-view's and return the merged list."
   (ggui-put-after (seq-elt seq1 (1- (seq-length seq1))) seq2)
-  (ggui-seq-append seq1 seq2))
+  (ggui-append seq1 seq2))
 
-(cl-defmethod ggui-delete (view (seq sequence))
+(cl-defmethod ggui-delete :after (view (seq sequence))
   "Remove VIEW from SEQ.
 VIEW can be either a `ggui-view' or a list of them"
   (unless (or (cl-typep view 'ggui-view)
               (cl-typep view 'list))
     (signal 'invalid-argument (list "Only ggui-view or list accepted for VIEW, you gave:" view)))
-  (ggui--remove-display view)
-  (ggui-seq-delete view seq))
+  (ggui--remove-display view))
 
 (cl-defmethod ggui-put-under-at ((view ggui-view) (node cons) n)
   "Put VIEW under NODE at position N.
