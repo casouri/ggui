@@ -1,4 +1,3 @@
-
 ;;; ggui-test.el --- Tests for ggui.el      -*- lexical-binding: t; -*-
 
 ;;; This file is NOT part of GNU Emacs
@@ -103,19 +102,17 @@ It also wraps everything in `save-excursion' for convenience."
            (view98 (ggui-view-new "mary"))
            (ssq (list seq view98)))
       (with-current-buffer buf1
-        (should (equal (list view1 view2) (list view1 view2)))
         ;; setup
         (ggui--setup-buffer buf1)
         ;; put after
         (ggui-put-after seq ggui--top-view)
         (should (equal "T\n\nwoomy\n\nveemo\n\nfresh\n\nB" (buffer-string)))
         ;; put at 3rd place
-        (ggui-put-at view99 seq 2)
-        (print seq)
+        (ggui-insert-at view99 seq 2)
         (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nB" (buffer-string)))
         (should (equal seq (list view1 view2 view99 view3)))
         ;; delete veemo
-        (ggui-delete view2 seq)
+        (ggui-delq view2 seq)
         (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nB" (buffer-string)))
         (should (equal seq (list view1 view99 view3)))
         ;; put view to seq
@@ -128,13 +125,14 @@ It also wraps everything in `save-excursion' for convenience."
         (ggui-put-after ssq view2)
         (should (equal "T\n\nveemo\n\nwoomy\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
         ;; car of ssq is seq, put at 2nd position
-        (ggui-put-at view2 (car ssq) 1)
+        (ggui-insert-at view2 (car ssq) 1)
         (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
         ;; edit a element from a list
         (setf (ggui--text (nth 2 seq)) "love")
         (should (equal "T\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nmary\n\nB" (buffer-string)))
         ;; put seq at somewhere in ssq
-        (ggui-put-at seq ssq -1)
+        (ggui-delq seq ssq)
+        (ggui-insert-at seq ssq 1)
         (should (equal "T\n\nmary\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nB" (buffer-string)))
         ))))
 
