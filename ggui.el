@@ -571,11 +571,10 @@ If N is negative, toggle backward N times."
 If N is larger than length of SEQ, signal `args-out-of-range'.
 If N is negative, insert at last Nth position.
 Return the modified seq."
-  (let* ((len (seq-length seq))
+  (let* ((len (length seq))
          (nn (ggui--regulate-index n len)))
     ;; check
-    (when (or (> nn len)
-              (< nn 0)) (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n)))
+    (when (> (abs n) len) (signal 'args-out-of-range (list "SEQ is:" seq "N is:" n)))
     ;; insert
     (setf (nthcdr nn seq) (cons obj (nthcdr nn seq))))
   seq)
