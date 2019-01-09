@@ -768,6 +768,170 @@ This function is recursive."
   (ggui--remove-display seq))
 
 
+;;;; App
+;;
+;; The pointer to current app and page is stored in
+;; frame parameters.
+;;
+;; Developers define subclasses of `ggui-app' and `ggui-page'
+;; for their app and each page of the app.
+;; They should share a common prefix.
+;;
+;; An app creates instances of all pages on startup.
+;; the other setup (buffers, windows, etc) take place
+;; when a page segue to another page.
+
+;;;;; Class
+
+(defvar ggui-app-list ()
+  "A list of existed names.")
+
+(defvar ggui-ask-before-quit t
+  "If non-nil, ask the user before quit an app.")
+
+(ggui-defclass ggui-app ()
+  ((name
+    :type string
+    :documentation "The name of the app.
+It has to be unique because it is used to name buffers, etc.
+Subclasses should set a default name.")
+   (page-alist
+    :type list
+    :documentation "An alist of created pages.")
+   (biggiebuffer
+    :type buffer
+    :documentation "Each app has a single biggie buffer.")
+   (hint-buffer
+    :type buffer
+    :documentation "Each app has a single hint buffer.")
+   (frame
+    :type frame
+    :documentation "The frame used by the app."))
+  "An app.")
+
+(ggui-defclass ggui-page ()
+  ((app
+    :type ggui-app
+    :documentation "The `ggui-app' this page belongs to.")
+   (buffer-alist
+    :type list
+    :documentation "Buffers managed by this page.")
+   (window-conf
+    :type window-configuration
+    :documentation "The window configuration."))
+  "A page is a UI unit in the timeline, it keeps tracks of states.
+Users can segue between pages.")
+
+;;;;; Command
+
+(defun ggui-hide-app ()
+  "Hide the current app."
+  (interactive)
+  (ggui--hide-app (frame-parameter nil 'ggui-app)))
+
+(defun ggui-quit-app ()
+  "Quit current app."
+  (interactive)
+  (let ((app (frame-parameter nil 'ggui-app)))
+    (when (or (not ggui-ask-before-quit)
+              (y-or-n-p (format "Quit %s? " (ggui--name app))))
+      (ggui--quit-app app))))
+
+
+;;;;; Generic
+;;
+;; generic functions that apps and pages need to implement
+
+;; what should a `ggui-open-app' implementation do:
+;;
+;; 1. set `frame' slot
+;; 2. get a unique and set to `name' slot (see `ggui-get-unique-name')
+;; 3. open a new frame and set frame parameter `ggui-app' to this app
+;; 4. segue to a page.
+;; biggie and hint buffer are setup automatically (see below)
+
+;; If your app is a single-instance app, there should be a
+;; command with the same name of the app as the entrance point
+;; If your app is a multi-instance app, there should be a
+;; switch command and a creation command, or you can combine them
+
+
+;; open function should handle two cases:
+;; 1. after user quit the app (or the app never opened)
+;; 2. after user hide the app
+(cl-defgeneric ggui--open-app ((app ggui-app))
+  "Open APP.")
+
+(cl-defmethod ggui--open-app :after ((app ggui-app))
+  "Setup hint and biggie buffer."
+  (setf (ggui--hint-buffer app) (ggui-make-hint-buffer (format " *hint-%s*" (ggui--name app))))
+  (setf (ggui--biggiebuffer app) (generate-new-buffer (format " *biggie-%s*"(ggui--name app)))))
+
+(cl-defgeneric ggui--hide-app ((app ggui-app))
+  "Hide (but not quit) APP.")
+
+(cl-defgeneric ggui--quit-app ((app ggui-app))
+  "Quit APP.")
+
+;; what should `initialize-instance' of an app do:
+;;
+;; create pages, set their `app' slot, and put into `page-alist'
+
+;; what should `initialize-instance' of a page do:
+;;
+;; Setup buffers and add them to `buffer-alist'.
+
+;; Get a unique name base on information in `ggui-app-list'
+;; and other information, e.g., current directory, etc.
+;; default implementation simply increment a counter.
+;; Set the name to `name' slot
+(cl-defgeneric ggui-get-unique-name ((app ggui-app))
+  "Get a unique name and set it to `name' slot."
+  (let ((name (ggui--name app))
+        (num 1))
+    (while (seq-find (lambda (app) (equal name (ggui--name app))) ggui-app-list)
+      (setq name (format "%s<%d>" name num))
+      (cl-incf num))
+    (setf (ggui--name app) name)))
+
+;; what should a `ggui-segue' implementation do:
+;;
+;; when segue in, setup window configuration and save to `window-conf' slot;
+;; setup all the buffers and major modes. Setting frame parameter `ggui-page'
+;; to this page is automatically handled.
+;;
+;; when segue out, clean up buffers and set `window-conf' slot again.
+;;
+;; The primary method is always defined by the TO page.
+;; FROM page doesn't do anything except clean up in :after method
+;; use :after so the TO page can get information from FROM page
+;; during setup
+;;
+;; the entrance page of an app should implement a special
+;; `ggui-segue' that accepts FROM to be nil, for obvious reason
+(cl-defgeneric ggui-segue ((from ggui-page) (to ggui-page))
+  "Segue from FROM page to TO page.")
+
+(cl-defmethod ggui-segue :after (_ (to ggui-page))
+  (set-frame-parameter nil 'ggui-page to))
+
+(defun ggui-segue-to (page)
+  "Segue from current page to PAGE.
+PAGE is a symbol representing the page in app's `ggui--page-alist'."
+  (ggui-segue (frame-parameter nil 'ggui-page)
+              (alist-get page (ggui--page-alist (frame-parameter nil 'ggui-app)))))
+
+;;;;; Helpers
+
+(defun ggui--this-app ()
+  "Get current frame's app"
+  (or (frame-parameter nil 'ggui-app)
+      (signal 'ggui-app-missing)))
+
+(defun ggui--this-page ()
+  "Get current frame's current page."
+  (or (frame-parameter nil 'ggui-page)
+      (signal 'ggui-page-missing)))
 ;;;; Provide
 
 (provide 'ggui)
