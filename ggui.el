@@ -1106,6 +1106,267 @@ Error: `ggui-app-misssing'."
   (with-current-buffer (ggui--hint-buffer app)
     (ggui--text ggui--hint-binding)))
 
+
+;;;; ggui map
+;;
+;; Primarily used by hint buffer
+
+(cl-defstruct ggui-map
+  "A keymap with a explanatory doc."
+  map ; a keymap
+  doc ; documentation string displayed above key binding information
+  )
+
+;;;;; Userland
+
+(defvar ggui-binding-pad "  "
+  "Padding used between columns of binding hints.")
+
+(defvar ggui-binding-pad-between " -> "
+  "Padding between key and definition of a binding in hint buffer.")
+
+(defun ggui-use-map (gmap)
+  "Activate `ggui-map' GMAP in the current buffer and display hint.
+This map only activates for one command."
+  (set-transient-map (ggui-map-map gmap))
+  (ggui--display-map-hint gmap))
+
+(defun ggui-use-map-default (gmap)
+  "Activate `ggui-map' GMAP in the current buffer and display hint.
+
+Unlike `ggui-use-map', MAP is persistent."
+  (use-local-map (ggui-map-map gmap))
+  (ggui--display-map-hint gmap))
+
+(defun ggui-define-map (doc &rest binding-list)
+  "Return a `ggui-map' with BINDING-LIST and DOC.
+DOC is the full description,
+and BINDING-LIST are key bindings.
+
+BINDING-LIST looks like
+
+    KEY DEFINITION
+    KEY DEFINITION
+
+KEY is passed to `kbd' before use.
+
+as in `define-key'. It is recommended to add a short description:
+
+    KEY '(\"DESCRIPTION\" . DEFINITION)
+    KEY '(\"DESCRIPTION\" . DEFINITION)
+
+so the hint buffer can show a more friendly description of the command.
+If you don't add description, `ggui-use-map' will use the command name as the description."
+  (make-ggui-map :doc doc :map (let ((map (make-sparse-keymap)))
+                                 (while binding-list
+                                   (let ((key (pop binding-list))
+                                         (def (pop binding-list)))
+                                     (define-key map (kbd key) def)))
+                                 map)))
+
+;;;;; Backstage
+
+(defun ggui--display-map-hint (gmap)
+  "Display `ggui-map' GMAP's documentation and bindings in hint buffer."
+  (setf (ggui--hint-doc (ggui--this-app)) (ggui-map-doc gmap))
+  (setf (ggui--hint-binding (ggui--this-app)) (ggui--map-to-hint gmap)))
+
+(defsubst ggui--hint-len (hint)
+  "Return the length of HINT.
+
+Example of HINT: (\"C-c C-c\" . \"Finish\")."
+  (+ (ggui--visual-length (car hint))
+     (ggui--visual-length (cdr hint))))
+
+(defun ggui--map-to-hint (map window)
+  "Translate MAP to a string that hint buffer can display.
+WINDOW is the window of hint buffer, it is needed for its dimensions."
+  (let* ((text-lst (ggui--map-to-text map))
+         (window-width (window-width window))
+         (window-height (window-height window))
+         ;; average length of text (C-c C-c Finish), possibly float
+         (avg-len (/ (cl-reduce (lambda (a b)
+                                  (+ a (ggui--hint-len b)))
+                                text-lst
+                                :initial-value 0)
+                     (length text-lst)))
+         (binding-pad-len (ggui--visual-length ggui-binding-pad))
+         (binding-pad-between-len (ggui--visual-length ggui-binding-pad-between))
+         (avg-len-with-padding (+ avg-len
+                                  binding-pad-len
+                                  binding-pad-between-len))
+         (column-num (floor (/ (float window-width) avg-len-with-padding)))
+         (row-num (ceiling (/ (float (length text-lst)) column-num)))
+         ;; each element is a list of hint entries(cons),
+         ;; each list represents a column
+         (text-matrix (cl-loop for x from 0 to (1- column-num)
+                               collect ()))
+         ;; max length of the binding text
+         ;; based on column number and window width
+         (max-binding-len (floor (/ (- (float window-width)
+                                       (* (1- column-num) binding-pad-len)
+                                       (* column-num binding-pad-between-len))
+                                    column-num)))
+         final-lst) ; final 1D list to concat into a string
+    ;; setup text-matrix
+    ;;
+    ;; scratch:
+    ;; (setq from '(0 1 2 3 4 5 6 7 8 9))
+    ;; (setq to (list () ()))
+    ;; (cl-loop for iter-count from 0 to 4
+    ;;          do (cl-loop for column-offset from 0 to 1
+    ;;                      do  (push (nth (+ (* iter-count 2) column-offset)
+    ;;                                     from)
+    ;;                                (nth column-offset
+    ;;                                     to))))
+    ;; to
+    ;; ((8 6 4 2 0) (9 7 5 3 1))
+    (cl-loop for iter-count from 0 to (1- row-num)
+             do (cl-loop for column-offset from 0 to (1- column-num) ; width of each segment
+                         do  (ggui--push-end (or (nth (+ (* iter-count column-num) ; start of each segment
+                                                         column-offset) ; offset in each segment
+                                                      text-lst) ; from
+                                                 (cons nil nil))
+                                             (nth column-offset
+                                                  text-matrix)))) ; to
+    (print text-matrix)
+    ;; pad keys and definitions for each column
+    (dolist (column text-matrix)
+      (let* ((max-key-len (cl-reduce
+                           (lambda (a hint) (max a (ggui--visual-length (car hint))))
+                           column
+                           :initial-value 0))
+             (max-def-len (- max-binding-len max-key-len)))
+        ;; pad key base on max length
+        (mapc (lambda (hint)
+                (setf (car hint)
+                      (let ((key (car hint)))
+                        (if key
+                            (concat (make-string (- max-key-len (ggui--visual-length key))
+                                                 ?\s)
+                                    key)
+                          (make-string max-key-len ?\s)))))
+              column)
+        ;; pad definition base on max-def-len
+        (mapc (lambda (hint)
+                (setf (cdr hint)
+                      (let ((binding (cdr hint)))
+                        (if binding
+                            (concat (substring binding 0 (min max-def-len
+                                                              (ggui--visual-length binding)))
+                                    (make-string (max 0 (- max-def-len (ggui--visual-length binding)))
+                                                 ?\s))
+                          (make-string max-def-len ?\s)))))
+              column)))
+    ;; generate string
+    (cl-loop
+     for row-idx from 0 to (1- row-num)
+     ;; nth row in each column
+     do (cl-loop
+         for column-idx from 0 to (1- column-num)
+         do (let ((hint (nth row-idx (nth column-idx text-matrix))))
+              (ggui--push-end (concat (car hint)
+                                      ;; pad between is already added in map-to-text
+                                      (cdr hint)
+                                      (if (eq column-idx (1- column-num))
+                                          ;; is this the last column in the row?
+                                          "\n"
+                                        ggui-binding-pad))
+                              final-lst))))
+    ;; concat everything together
+    (apply #'concat final-lst)))
+
+(defun ggui--map-to-text (map)
+  "Generate a list of binding text entries from MAP recursively.
+
+Each entry is a cons: (key . definition), both are string.
+
+This is primarily used by `ggui-map', which are small maps
+(bindings to other `ggui-map's are lambdas instead of other keymaps),
+so it is recursive (unlike which-key). You might not want to use it on
+large (deep) keymaps."
+  (let (key ; type
+        def ; binding
+        name ; item-name
+        help ; help-string
+        def-lst)
+    ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Format-of-Keymaps.html
+    ;;
+    (setq def-lst
+          (if (or (not (listp map))
+                  (eq 'menu-bar (car map)))
+              ;; this function doesn't handle the case
+              ;; when MAP is a char-table, vector or a string
+              ;; and when MAP is a menu bar map
+              (setq def-lst ())
+            ;; handles
+            (if (eq (car map) 'keymap)
+                ;; top level keymaps don't have key
+                (progn (setq key nil)
+                       (setq def map))
+              (setq key (car map))
+              (setq def (cdr map)))
+            ;; stringify KEY, it should be either a key or ""
+            (setq key (if key
+                          (key-description (vector key))
+                        ""))
+            ;; stringify DEF
+            ;;
+            ;; example of DEF: ("Abort" function ggui-biggie-abort)
+            ;; or C-k & C-c: (keymap (11 "Abort" function ggui-biggie-abort)
+            ;;                       (3 "Finish" function ggui-biggie-finish))
+            (cond
+             ;; 1. DEF is a keymap
+             ((and (listp def)
+                   (eq 'keymap (car def)))
+              ;; set def-lst to:
+              (apply 'append (mapcar #'ggui--map-to-text
+                                     (cdr def))))
+             ;; 2. DEF is a extended menu
+             ((and (listp def)
+                   (eq 'menu-item (car def)))
+              ;; set def-lst to:
+              (list (cons "" "menu")))
+             ;; 3. DEF is a ordinary binding
+             ;; set def-lst to:
+             (t (list
+                 (cons "" ; key
+                       (propertize
+                        (cond
+                         ;; 3.1 def = lambda
+                         ((and (listp def)
+                               (functionp def))
+                          (setq help (pp-to-string def))
+                          "lambda")
+                         ;; 3.2 def = (name . func-symbol-or-lambda) or (name help . func-symbol-or-lambda)
+                         ((and def (listp def)) ; in case def = nil
+                          (progn (setq name (let ((name (nth 0 def))) (if (stringp name) name nil)))
+                                 (setq help (let ((help (nth 1 def))) (if (stringp help) help nil)))
+                                 name))
+                         ;; 3.3 def = (function func-symbol) or (quote func-symbol)
+                         ((and (symbolp def)
+                               (functionp def))
+                          (symbol-name def))
+                         ;; 3.4 ???
+                         (t "???")) ; TODO maybe error here
+                        'help-echo help)))))))
+    ;; cat key and (each) def
+    (mapcar (lambda (def) (cons (concat key ; this key
+                                        (if (equal (car def) "")
+                                            ggui-binding-pad-between
+                                          " ")
+                                        (car def)) ; previous key
+                                (cdr def)))
+            def-lst)))
+
+(defun ggui--gmap-to-hint (gmap)
+  "Generate a binding hint (like which-key) from `ggui-map' GMAP."
+  ;; Translate each binding to a text entry and gather into a list
+  ()
+  (let ((window-width (window-width))
+        (entry-lst ()))
+    ))
+
 ;;;; Provide
 
 (provide 'ggui)
