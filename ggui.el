@@ -1212,16 +1212,52 @@ KEY is passed to `kbd' before use.
 as in `define-key'. It is recommended to add a short description:
 
     KEY '(\"DESCRIPTION\" . DEFINITION)
-    KEY '(\"DESCRIPTION\" . DEFINITION)
+
+or even a help tooltip:
+
+    KEY '(\"DESCRIPTION\" \"HELP\" . DEFINITION)
+
 
 so the hint buffer can show a more friendly description of the command.
-If you don't add description, `ggui-use-map' will use the command name as the description."
+If you don't add description, `ggui-use-map' will use the command name as the description.
+
+For convenience, you can simply write
+
+    KEY (ggui-map-binding ggui-map \"DESCRIPTION\" \"HELP\")
+
+for `ggui-maps' and
+
+    KEY (ggui-fn-binding func \"DESCRIPTION\" \"HELP\")
+
+for other normal definitions (normal keymap, function, lambda, etc)."
   (make-ggui-map :doc doc :map (let ((map (make-sparse-keymap)))
                                  (while binding-list
                                    (let ((key (pop binding-list))
                                          (def (pop binding-list)))
                                      (define-key map (kbd key) def)))
                                  map)))
+
+(defun ggui-map-binding (map name &optional help)
+  "Return a valid keymap binding.
+It can be placed in the definition part in an element of a keymap.
+
+MAP is a `ggui-map', it can be either symbol or the actual map.
+NAME is the name displaced in hint buffer,
+HELP is the optional help tooltip."
+  (if help
+      `(,name ,help . (lambda () (ggui-use-map ,map)))
+    `(,name . (lambda () (ggui-use-map ,map)))))
+
+(defun ggui-fn-binding (fn name &optional help)
+  "Return a valid keymap binding.
+It can be placed in the definition part in an element of a keymap.
+
+FN is a function.
+NAME is the name displaced in hint buffer,
+HELP is the optional help tooltip."
+  (if help
+      `(,name ,help . ,fn)
+    `(,name . ,fn)))
 
 ;;;;; Backstage
 
@@ -1258,9 +1294,13 @@ WINDOW is the window of hint buffer, it is needed for its dimensions."
          ;; each element is a list of hint entries(cons),
          ;; each list represents a column
          (text-matrix (cl-loop for column-idx from 0 to (1- column-num)
-                               collect (let* ((beg (+ (* column-idx row-num)))
-                                              (end (+ beg row-num)))
-                                         (seq-subseq text-lst beg (min end (length text-lst))))))
+                               with lst-len = (length text-lst)
+                               with beg
+                               with end
+                               do (setq beg (+ (* column-idx row-num)))
+                               do (setq end (+ beg row-num))
+                               when (< beg lst-len)
+                               collect (seq-subseq text-lst beg (min end lst-len))))
          ;; max length of the binding text
          ;; based on column number and window width
          (free-width (- window-width
@@ -1395,7 +1435,9 @@ large (deep) keymaps."
                          ;; 3.2 def = (name . func-symbol-or-lambda) or (name help . func-symbol-or-lambda)
                          ((and def (listp def)) ; in case def = nil
                           (progn (setq name (let ((name (nth 0 def))) (if (stringp name) name nil)))
-                                 (setq help (let ((help (nth 1 def))) (if (stringp help) help nil)))
+                                 (setq help (let ((help (condition-case err
+                                                            (nth 1 def)
+                                                          (wrong-type-argument nil)))) (if (stringp help) help nil)))
                                  name))
                          ;; 3.3 def = (function func-symbol) or (quote func-symbol)
                          ((and (symbolp def)
