@@ -932,6 +932,98 @@ PAGE is a symbol representing the page in app's `ggui--page-alist'."
   "Get current frame's current page."
   (or (frame-parameter nil 'ggui-page)
       (signal 'ggui-page-missing)))
+
+;;;; Biggiebuffer
+;;
+;; each app has a single biggiebuffer that shares history
+
+;;;;; Variable, command, minor mode
+
+(defvar-local ggui-biggie-history nil
+  "A list of user input history of biggiebuffer.")
+
+(defvar-local ggui-biggie-finish-fn nil
+  "The finish function used in `ggui-biggie-finish'.")
+
+(defvar-local ggui-biggie-abort-fn nil
+  "The abort function used in `ggui-biggie-abort'.")
+
+(defvar-local ggui-biggie-update-fn nil
+  "The update function used in `ggui-biggie-update'.")
+
+(defvar ggui-biggie-pop-fn nil ;; TODO defualt pop function
+  "Functions used to display biggiebuffer.
+Takes one argument, the biggiebuffer, and returns the window
+No assumptions about the position of the point.")
+
+(define-minor-mode ggui-biggie-mode
+  "Minor mode of biggiebuffer."
+  :lighter " BIGGIE"
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "C-c C-c") #'ggui-biggie-finish)
+            (define-key map (kbd "C-c C-k") #'ggui-biggie-abort)
+            map))
+
+(define-minor-mode ggui-biggie-update-mode
+  "In this mode biggiebuffer updates after every command."
+  :lighter ""
+  (if ggui-biggie-update-mode
+      (add-hook 'after-change-functions #'ggui-biggie-update t t)
+    (remove-hook 'after-change-functions #'ggui-biggie-update t)))
+
+(defun ggui-biggie-finish ()
+  "Finish with current content."
+  (interactive)
+  (ggui-biggie-update-mode -1)
+  (add-to-list 'ggui-biggie-history (buffer-string))
+  (if ggui-biggie-finish-fn
+      (funcall ggui-biggie-finish-fn (buffer-string))
+    (ggui-log 'warn "No `ggui-biggie-finish-fn' specified.")))
+
+(defun ggui-biggie-abort ()
+  "Abort with current content."
+  (interactive)
+  (ggui-biggie-update-mode -1)
+  (if ggui-biggie-abort-fn
+      (funcall ggui-biggie-abort-fn (buffer-string))
+    (ggui-log 'warn "No `ggui-biggie-abort-fn' specified.")))
+
+(defun ggui-biggie-update (_ _1 _2)
+  "Update with current content."
+  (if ggui-biggie-update-fn
+      (fucnall ggui-biggie-update-fn (buffer-string))
+    (ggui-log 'warn "No `ggui-biggie-update-fn' specified.")))
+
+;;;;; Internal API
+
+(defun ggui--biggiebuffer ()
+  "Return the biggie-buffer of current app (of the selected frame)."
+  (ggui--biggiebuffer (frame-parameter nil 'ggui-app)))
+
+(defun ggui-invoke-biggie (finish-callback abort-callback &optional update-callback)
+  "Invoke biggiebuffer with FINISH-CALLBACK and ABORT-CALLBACK.
+FINISH-CALLBACK is called with biggiebuffer's content when the user finish,
+ABORT-CALLBACK is called with biggiebuffer's content when the user abort.
+If non-nil, UPDATE-CALLBACK will be called with biggiebuffer's content
+whenever biggiebuffer's content has changed.
+
+This function should be called inside other functions for a user input."
+  (select-window (ggui-pop-biggie (frame-parameter nil 'ggui-page)))
+  (if (eq (current-buffer) (ggui--buggiebuffer (frame-parameter nil 'ggui-app)))
+      (progn
+        (setq ggui-biggie-finish-fn finish-callback
+              ggui-biggie-abort-fn abort-callback
+              ggui-biggie-update-fn update-callback)
+        (if update-callback
+            (ggui-biggie-update-mode)
+          (ggui-biggie-update-mode -1)))))
+
+(cl-defgeneric ggui-pop-biggie ((page ggui-page))
+  "Pop a buggiebuffer. Specific location of the window and size
+depends on each PAGE. By default use a side window.
+Return the window used for displaying biggiebuffer,
+nil if no suitable window can be found."
+  (display-buffer-in-side-window (ggui--biggiebuffer) '((side . bottom))))
 ;;;; Provide
 
 (provide 'ggui)
