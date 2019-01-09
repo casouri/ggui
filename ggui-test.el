@@ -136,4 +136,77 @@ It also wraps everything in `save-excursion' for convenience."
         (should (equal "T\n\nmary\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nB" (buffer-string)))
         ))))
 
+;;;; test app
+
+(ggui-defclass my-simple-app (ggui-app) ((name :initform "my simple app")))
+(ggui-defclass my-simple-page1 (ggui-page) ())
+(ggui-defclass my-simple-page2 (ggui-page) ())
+
+(define-minor-mode my-simple-page1-mode
+  "My-Simple-Page1 mode."
+  :lighter " PAGE2"
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "C-c n") (lambda () (interactive) (ggui-segue-to 'page2)))
+            (define-key map (kbd "C-c q") #'qqui-quit-app)
+            (define-key map (kbd "C-c q") #'qqui-hide-app)
+            map))
+
+(define-minor-mode my-simple-page2-mode
+  "My-Simple-Page2 mode."
+  :lighter " PAGE1"
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "C-c n") (lambda () (interactive) (ggui-segue-to 'page1)))
+            (define-key map (kbd "C-c q") #'qqui-quit-app)
+            (define-key map (kbd "C-c q") #'qqui-hide-app)
+            map))
+
+(cl-defmethod initialize-instance :after ((app my-simple-app) &rest _)
+  (setf (ggui--page-alist app) (list (cons 'page1 (my-simple-page1 :app app))
+                                     (cons 'page2 (my-simple-page2 :app app)))))
+
+(cl-defmethod initialize-instance :after ((page my-simple-page1) &rest _)
+  (let ((buffer (get-buffer-create "HOME of page1")))
+    (with-current-buffer buffer
+      (insert "HOME, sweet home."))
+    (setf (ggui--buffer-alist page) (list (cons 'main-buffer buffer)))))
+
+(cl-defmethod initialize-instance :after ((page my-simple-page2) &rest _)
+  (let ((buffer (get-buffer-create "COOL BUFFER2")))
+    (with-current-buffer buffer
+      (insert "THIS IS A COOOOOL BUFFER, but belongs to page2.
+You can't edit anything because it's in read only mode."))
+    (setf (ggui--buffer-alist page) (list (cons 'main-buffer buffer)))))
+
+(cl-defmethod ggui-segue (_ (to my-simple-page1))
+  (message "PAGE1 is here!")
+  ;; setup window layout
+  (delete-other-windows)
+  (switch-to-buffer (alist-get 'main-buffer (ggui--buffer-alist to)))
+  (my-simple-page1-mode))
+
+(cl-defmethod ggui-segue :before ((_ my-simple-page1) __)
+  (message "My simple page1 leaving!"))
+
+(cl-defmethod ggui-segue (_ (to my-simple-page2))
+  (message "PAGE2 is here!")
+  (delete-other-windows)
+  (switch-to-buffer (alist-get 'main-buffer (ggui--buffer-alist to)))
+  (my-simple-page2-mode)
+  (read-only-mode))
+
+(cl-defmethod ggui--open-app ((app my-simple-app))
+  (let ((frame (make-frame)))
+    (select-frame frame)
+    (setf (ggui--frame app) frame)
+    (set-frame-parameter frame 'ggui-app app)
+    (setf (ggui--name app) (ggui-get-unique-name app))
+    (add-to-list 'ggui-app-list app)
+    (ggui-segue-to 'page1)))
+
+(cl-defmethod ggui--quit-app ((app my-simple-app))
+  (delete-frame (ggui--frame app)))
+
+(cl-defmethod ggui--hide-app ((app my-simple-app))
+  ())
+
 ;;; ggui-test ends here
