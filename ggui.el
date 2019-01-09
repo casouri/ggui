@@ -1242,7 +1242,6 @@ Example of HINT: (\"C-c C-c\" . \"Finish\")."
 WINDOW is the window of hint buffer, it is needed for its dimensions."
   (let* ((text-lst (ggui--map-to-text map))
          (window-width (window-width window))
-         (window-height (window-height window))
          ;; average length of text (C-c C-c Finish), possibly float
          (avg-len (/ (cl-reduce (lambda (a b)
                                   (+ a (ggui--hint-len b)))
@@ -1251,73 +1250,69 @@ WINDOW is the window of hint buffer, it is needed for its dimensions."
                      (length text-lst)))
          (binding-pad-len (ggui--visual-length ggui-binding-pad))
          (binding-pad-between-len (ggui--visual-length ggui-binding-pad-between))
-         (avg-len-with-padding (+ avg-len
-                                  binding-pad-len
-                                  binding-pad-between-len))
+         (avg-len-with-padding (floor (+ avg-len
+                                         binding-pad-len
+                                         binding-pad-between-len)))
          (column-num (floor (/ (float window-width) avg-len-with-padding)))
          (row-num (ceiling (/ (float (length text-lst)) column-num)))
          ;; each element is a list of hint entries(cons),
          ;; each list represents a column
-         (text-matrix (cl-loop for x from 0 to (1- column-num)
-                               collect ()))
+         (text-matrix (cl-loop for column-idx from 0 to (1- column-num)
+                               collect (let* ((beg (+ (* column-idx row-num)))
+                                              (end (+ beg row-num)))
+                                         (seq-subseq text-lst beg (min end (length text-lst))))))
          ;; max length of the binding text
          ;; based on column number and window width
-         (max-binding-len (floor (/ (- (float window-width)
-                                       (* (1- column-num) binding-pad-len)
-                                       (* column-num binding-pad-between-len))
-                                    column-num)))
-         final-lst) ; final 1D list to concat into a string
-    ;; setup text-matrix
+         (free-width (- window-width
+                        (* (1- column-num) binding-pad-len)
+                        (* column-num binding-pad-between-len)))
+         ;; each element correspond to the max length of one column
+         (max-binding-len-lst (cl-loop for column-idx from 0 to (1- column-num)
+                                       collect (cl-reduce (lambda (a b)
+                                                            (max a (ggui--hint-len b)))
+                                                          (nth column-idx text-matrix)
+                                                          :initial-value 0)))
+         final-lst) ; final 1D list for concating into a string
+    ;; calculate `max-binding-len' for each column
     ;;
-    ;; scratch:
-    ;; (setq from '(0 1 2 3 4 5 6 7 8 9))
-    ;; (setq to (list () ()))
-    ;; (cl-loop for iter-count from 0 to 4
-    ;;          do (cl-loop for column-offset from 0 to 1
-    ;;                      do  (push (nth (+ (* iter-count 2) column-offset)
-    ;;                                     from)
-    ;;                                (nth column-offset
-    ;;                                     to))))
-    ;; to
-    ;; ((8 6 4 2 0) (9 7 5 3 1))
-    (cl-loop for iter-count from 0 to (1- row-num)
-             do (cl-loop for column-offset from 0 to (1- column-num) ; width of each segment
-                         do  (ggui--push-end (or (nth (+ (* iter-count column-num) ; start of each segment
-                                                         column-offset) ; offset in each segment
-                                                      text-lst) ; from
-                                                 (cons nil nil))
-                                             (nth column-offset
-                                                  text-matrix)))) ; to
-    (print text-matrix)
+    ;; while sum of the max lengths are wider than window width
+    (while (> (cl-reduce #'+ max-binding-len-lst) free-width)
+      ;; fing the index of the largest max len, reduce it by 1
+      (let ((max-idx 0))
+        (cl-loop for column-idx from 0 to (1- column-num)
+                 do (when (> (nth column-idx max-binding-len-lst)
+                             (nth max-idx max-binding-len-lst))
+                      (setq max-idx column-idx)))
+        (cl-decf (nth max-idx max-binding-len-lst))))
     ;; pad keys and definitions for each column
-    (dolist (column text-matrix)
-      (let* ((max-key-len (cl-reduce
-                           (lambda (a hint) (max a (ggui--visual-length (car hint))))
-                           column
-                           :initial-value 0))
-             (max-def-len (- max-binding-len max-key-len)))
-        ;; pad key base on max length
-        (mapc (lambda (hint)
-                (setf (car hint)
-                      (let ((key (car hint)))
-                        (if key
-                            (concat (make-string (- max-key-len (ggui--visual-length key))
-                                                 ?\s)
-                                    key)
-                          (make-string max-key-len ?\s)))))
-              column)
-        ;; pad definition base on max-def-len
-        (mapc (lambda (hint)
-                (setf (cdr hint)
-                      (let ((binding (cdr hint)))
-                        (if binding
-                            (concat (substring binding 0 (min max-def-len
-                                                              (ggui--visual-length binding)))
-                                    (make-string (max 0 (- max-def-len (ggui--visual-length binding)))
-                                                 ?\s))
-                          (make-string max-def-len ?\s)))))
-              column)))
-    ;; generate string
+    (cl-loop
+     for column-idx from 0 to (1- column-num)
+     do (let* ((column (nth column-idx text-matrix))
+               (max-binding-len (nth column-idx max-binding-len-lst))
+               (max-key-len (cl-reduce
+                             (lambda (a hint) (max a (ggui--visual-length (or (car hint) ""))))
+                             column
+                             :initial-value 0))
+               (max-def-len (- max-binding-len max-key-len)))
+          ;; pad key base on `max-key-len'
+          (mapc (lambda (hint)
+                  (setf (car hint)
+                        (let ((key (car hint)))
+                          (if key
+                              (concat (make-string (- max-key-len (ggui--visual-length key))
+                                                   ?\s)
+                                      key)
+                            (make-string max-key-len ?\s)))))
+                column)
+          ;; pad definition base on `max-def-len'
+          (mapc (lambda (hint)
+                  (setf (cdr hint)
+                        (let ((binding (cdr hint)))
+                          (if binding
+                              (ggui--fix-len-visual binding max-def-len)
+                            (make-string max-def-len ?\s)))))
+                column)))
+    ;; flat matric into a list with padding
     (cl-loop
      for row-idx from 0 to (1- row-num)
      ;; nth row in each column
