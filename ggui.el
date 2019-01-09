@@ -106,6 +106,40 @@ LEVEL is a symbol, can be :info :warn or :error."
                    str)
            args)))
 
+(defmacro ggui--push-end (elt lst)
+  "Push ELT to the end of LST."
+  ;; (setq ll (list 1 2 3))
+  ;; (benchmark-run 1000 (ggui--push-end 0 ll))
+  ;; (0.099558 1 0.0901969999999892)
+  `(setf ,lst (append ,lst (list ,elt))))
+
+;;;;; CJK length
+
+(defun ggui--hanp (char)
+  "Return t if CHAR is a han character.
+
+See CJK Unified Ideographs (Han) in http://www.unicode.org/charts/.
+
+This function simply checks if 4E00 < char < 9FFF."
+  (< 19968 char 40959))
+
+(defun ggui--cjkp (char)
+  "Return t if CHAR is CJK character."
+  ;;TODO japanese
+  (ggui--hanp char))
+
+(defun ggui--visual-length (str)
+  "Return visual length of STR.
+
+CJK characters are counted as 2 units in length."
+  ;; (benchmark-run 1000 (ggui--visual-length "你好"))
+  ;; (benchmark-run 1000 (length "你好"))
+  (let ((len 0))
+    (seq-doseq (char str)
+      (setq len (+ len (if (ggui--hanp char) 2 1))))
+    len))
+
+
 ;;;; Error
 
 ;; TODO what error condition does this error belong to?
