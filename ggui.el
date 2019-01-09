@@ -1024,6 +1024,88 @@ depends on each PAGE. By default use a side window.
 Return the window used for displaying biggiebuffer,
 nil if no suitable window can be found."
   (display-buffer-in-side-window (ggui--biggiebuffer) '((side . bottom))))
+
+;;;; Hint buffer
+;; Hint buffer displays the available bindings and
+;; other instructions.
+;;
+;; Each app has one hint buffer.
+;;
+;; Hint buffer has two `ggui-view's:
+;; doc and binding. Doc is above binding.
+;; Binding shows available bindings and doc shows extra
+;; instructions.
+;;
+;;      hint buffer                  ggui-map:
+;; +-------------------------------+
+;; |  Some insructions             | documentation (doc) (setf (ggui--hint-doc (ggui--this-app)))
+;; |                               |
+;; |  C-c C-c Finish               | keybinding (map) (setf (ggui--hint-binding (ggui--this-app)))
+;; |  C-c C-k Abort                |
+;; |  ...                          |
+;; |                               |
+;; |                               |
+;; |                               |
+;; |                               |
+;; |                               |
+;; |                               |
+;; |                               |
+;; +-------------------------------+
+
+;;;;; Variable
+
+(defvar ggui-hint-pop-fn nil ; TODO default pop function
+  "Function used to show hint buffer.
+
+Although it is supposes to always visible in an app,
+developers might want to hide hint buffer.
+Similar to `ggui-biggie-pop-fn', this function takes the hint buffer
+as argument and returns the window it is displayed in.
+No assumptions about the position of the point.")
+
+;;;;; Buffer
+
+(defvar-local ggui--hint-doc nil
+  "A `gguiview'. The instruction part of hint buffer..")
+
+(defvar-local ggui--hint-binding nil
+  "A `gguiview'. The binding part of hint buffer.")
+
+(defun ggui-make-hint-buffer (name)
+  "Return a hint buffer with NAME."
+  (let ((buffer (ggui--setup-buffer (generate-new-buffer name))))
+    (with-current-buffer buffer
+      (ggui-put-after (setq ggui--hint-doc (ggui-view-new ""))
+                      ggui--top-view)
+      (ggui-put-before (setq ggui--hint-binding (ggui-view-new ""))
+                       ggui--bottom-view))))
+
+;;;;; Virtual slot of ggui-app
+
+(cl-defmethod (setf ggui--hint-doc) (instruction (app ggui-app))
+  "Display INSTRUCTION in the doc part of the hint buffer of APP.
+
+Error: `ggui-app-misssing'."
+  (with-current-buffer (ggui--hint-buffer app)
+    (setf (ggui--text ggui--hint-doc) instruction)))
+
+(cl-defmethod ggui--hint-doc ((app ggui-app))
+  "Get the instruction in the doc part of the hint buffer of APP."
+  (with-current-buffer (ggui--hint-buffer app)
+    (ggui--text ggui--hint-doc)))
+
+(cl-defmethod (setf ggui--hint-binding) (hint (app ggui-app))
+  "Display HINT in the binding part of the hint buffer of APP.
+
+Error: `ggui-app-misssing'."
+  (with-current-buffer (ggui--hint-buffer app)
+    (setf (ggui--text ggui--hint-binding) hint)))
+
+(cl-defmethod ggui--hint-binding ((app ggui-app))
+  "Get the binding hint in the binding part of the hint buffer of APP."
+  (with-current-buffer (ggui--hint-buffer app)
+    (ggui--text ggui--hint-binding)))
+
 ;;;; Provide
 
 (provide 'ggui)
