@@ -145,6 +145,7 @@ CJK characters are counted as 2 units in length."
 ;; TODO what error condition does this error belong to?
 (define-error 'ggui-pos-out-of-range "Position is out of the range of the buffer (pos showed after colon)" '(error))
 (define-error 'ggui-buffer-missing "There is no such buffer" '(file-missing error))
+(define-error 'ggui-app-missing "There is no app." '(error))
 (define-error 'ggui-end-of-line "The line is not long enough" '(end-of-buffer error))
 (define-error 'ggui-delimiter-misplace "A ggui delimiter should/should not be here." '(error))
 (define-error 'ggui-prohibit-edit "This edition is not allowed" '(error))
