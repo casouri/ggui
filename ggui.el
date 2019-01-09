@@ -490,7 +490,10 @@ Return nil."
        (ggui--move-overlay view 1 1 (get-buffer-create " *ggui-tmp*"))
        (delete-region beg end)))))
 
-;;;; buffer
+;;;; ggui managed buffer
+;;
+;; One such buffer has a top and a bottom anchor
+;; to insert `ggui-view's and is read only.
 
 (defvar-local ggui--setup nil
   "Whether current buffer is setup.")
@@ -594,6 +597,7 @@ If N is negative, toggle backward N times."
 ;;
 ;; Use the list manipulation functions below
 ;; to keep `ggui-view's in the list in sync
+;; when editing lists.
 ;;
 ;; For other generic sequences,
 ;; implement these generic functions for sequence:
