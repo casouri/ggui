@@ -113,6 +113,24 @@ LEVEL is a symbol, can be :info :warn or :error."
   ;; (0.099558 1 0.0901969999999892)
   `(setf ,lst (append ,lst (list ,elt))))
 
+(defun ggui--fix-len-visual (str len)
+  "Adjust STR to have length LEN, either by chopping or padding.
+
+LEN must be a visual length, i.e. returned by `ggui--visual-length'.
+
+Visual means to things:
+1. length is measured in visual way, i.e., CJK chars occupy two units.
+2. \"..\" is added to the end of STR when chopping
+unless LEN is less than 2.
+
+If STR is shorter than LEN, spaces are padded on the SIDE."
+  (let ((real-len (ggui--visual-length str)))
+    (if (> real-len len)
+        (if (> len 2)
+            (concat (ggui--visual-substring str 0 (- len 2)) "..")
+          (ggui--visual-substring str 0 len))
+      (concat str (make-string (- len real-len) ?\s)))))
+
 ;;;;; CJK length
 
 (defun ggui--hanp (char)
@@ -131,14 +149,55 @@ This function simply checks if 4E00 < char < 9FFF."
 (defun ggui--visual-length (str)
   "Return visual length of STR.
 
-CJK characters are counted as 2 units in length."
-  ;; (benchmark-run 1000 (ggui--visual-length "你好"))
-  ;; (benchmark-run 1000 (length "你好"))
-  (let ((len 0))
-    (seq-doseq (char str)
-      (setq len (+ len (if (ggui--hanp char) 2 1))))
-    len))
+E.g.,CJK characters are counted as 2 units in length.
+This function doesn't respect 'display or 'invisible text property."
+  (string-width str))
 
+(defun ggui--visual-substring (str from to)
+  "Return the substring of STR from FROM to TO.
+
+Similar to `ggui--visual-length', CJK chars are counted as two unit.
+If TO or FROM is in the middle of a CJK char, throw away the char and append a space.
+
+This function doesn't respect 'display or 'invisible text property.
+TODO Truly support CJK, instead of just han."
+  ;; ??? appended space inherit text properties of the char next to it?
+  (if (< to from)
+      (signal 'args-out-of-range (list "TO < FROM, TO:" to "FROM:" from))
+    (let ((visual-from 0) ; visual index on display
+          (visual-to 0)
+          (real-from 0) ; actual index in string
+          (real-to 0)
+          before-pad
+          after-pad)
+      ;; from index
+      (while (< visual-from from)
+        (setq visual-from
+              (if (ggui--cjkp (aref str real-from))
+                  (+ 2 visual-from)
+                (1+ visual-from)))
+        (setq real-from (1+ real-from)))
+      (if (> visual-from from)
+          (progn (setq before-pad " ")
+                 (setq visual-to (1- visual-from))
+                 (setq real-to real-from))
+        (setq before-pad ""))
+
+      ;; to index
+      (while (< visual-to to)
+        (setq visual-to
+              (if (ggui--cjkp (aref str real-to))
+                  (+ 2 visual-to)
+                (1+ visual-to)))
+        (setq real-to (1+ real-to)))
+      (if (> visual-to to)
+          (progn (setq after-pad " ")
+                 (setq real-to (1- real-to)))
+        (setq after-pad ""))
+      ;; return string
+      (concat before-pad
+              (substring str real-from real-to)
+              after-pad))))
 
 ;;;; Error
 
