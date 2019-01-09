@@ -527,7 +527,8 @@ point 4 is the first (user defined) view.")
          ;; put overlay
          (ggui--move-overlay ggui--top-view 1 2)
          (ggui--move-overlay ggui--bottom-view 4 5)
-         (setq ggui--setup t)))))
+         (setq ggui--setup t)
+         (read-only-mode)))))
   nil)
 
 ;;;;; ggui-object-at-point
