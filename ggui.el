@@ -256,7 +256,8 @@ nil
 Don't use `slot-value' on this, instead, use the accessor `ggui--overlay'.")
    (text
     :type string
-    :documentation "Public. The text of the view.")
+    :documentation "Public. The text of the view.
+It cannot be a empty string, otherwise delimiter checkers error when inserting the view.")
    (property-list
     :documentation "Dummy slot used by init: (PROP VALUE PROP VALUE).
 Use `ggui--overlay-put' to add properties to overlay."))
@@ -1135,10 +1136,11 @@ No assumptions about the position of the point.")
   "Return a hint buffer with NAME."
   (let ((buffer (ggui--setup-buffer (generate-new-buffer name))))
     (with-current-buffer buffer
-      (ggui-put-after (setq ggui--hint-doc (ggui-view-new ""))
+      (ggui-put-after (setq ggui--hint-doc (ggui-view-new " "))
                       ggui--top-view)
-      (ggui-put-before (setq ggui--hint-binding (ggui-view-new ""))
-                       ggui--bottom-view))))
+      (ggui-put-before (setq ggui--hint-binding (ggui-view-new " "))
+                       ggui--bottom-view))
+    buffer))
 
 ;;;;; Virtual slot of ggui-app
 
