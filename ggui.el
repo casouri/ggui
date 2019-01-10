@@ -931,6 +931,8 @@ Users can segue between pages.")
 (cl-defgeneric ggui--hide-app ((app ggui-app))
   "Hide (but not quit) APP.")
 
+;; You should set frame parameter `ggui-app' and `ggui-page' to nil
+;; if you didn't create a new frame when opening the app.
 (cl-defgeneric ggui--quit-app ((app ggui-app))
   "Quit APP.")
 
