@@ -567,7 +567,8 @@ Return nil."
 point 4 is the first (user defined) view.")
 
 (defun ggui--setup-buffer (buffer)
-  "Setup BUFFER. BUFFER can be either a string or a buffer."
+  "Setup BUFFER and return it. BUFFER can be either a string or a buffer.
+If buffer already exists, it is erased."
   (let ((buffer (cond ((bufferp buffer) buffer)
                       ((stringp buffer) (get-buffer-create buffer))
                       (t (signal 'invalid-argument (list "BUFFER is not a buffer nor a string" buffer))))))
@@ -591,7 +592,7 @@ point 4 is the first (user defined) view.")
          (ggui--move-overlay ggui--bottom-view 4 5)
          (setq ggui--setup t)
          (read-only-mode)))))
-  nil)
+  (get-buffer buffer))
 
 ;;;;; ggui-object-at-point
 
