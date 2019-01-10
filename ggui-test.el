@@ -42,6 +42,8 @@ It also wraps everything in `save-excursion' for convenience."
   (should t))
 
 ;;; Test
+
+;;;; Test view
 (ert-deftest ggui-goto ()
   (ggui-test-with-buffer (buffer buffer1)
     (let ()
@@ -208,5 +210,10 @@ You can't edit anything because it's in read only mode."))
 
 (cl-defmethod ggui--hide-app ((app my-simple-app))
   ())
+
+(defun my-simple-app-start ()
+  "Start my-simple-app."
+  (interactive)
+  (ggui--open-app (my-simple-app)))
 
 ;;; ggui-test ends here
