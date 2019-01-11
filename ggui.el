@@ -713,7 +713,7 @@ If N is negative, toggle backward N times."
 If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
 
 (defmacro ggui-remove-n (elt seq &optional compare-fn)
-  "(setf SEQ (ggui-remove ELT SEQ COMPARE-FN))"
+  "(setf SEQ (ggui-remove ELT SEQ COMPARE-FN))."
   `(setf ,seq (ggui-remove ,elt ,seq ,compare-fn)))
 
 (cl-defgeneric ggui-insert-at (elt seq n)
