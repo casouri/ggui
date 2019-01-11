@@ -708,8 +708,7 @@ If N is negative, toggle backward N times."
 ;;;;; ggui generic list function
 
 (cl-defgeneric ggui-remove (elt seq &optional compare-fn)
-  "Delete ELT from SEQ.
-Return the modified SEQ for convenience.
+  "Return a seq with ELT removed from SEQ.
 
 If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
 
