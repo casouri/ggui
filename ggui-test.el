@@ -110,11 +110,11 @@ It also wraps everything in `save-excursion' for convenience."
         (ggui-put-after seq ggui--top-view)
         (should (equal "T\n\nwoomy\n\nveemo\n\nfresh\n\nB" (buffer-string)))
         ;; put at 3rd place
-        (ggui-insert-at view99 seq 2)
+        (ggui-insert-at-n view99 seq 2)
         (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nB" (buffer-string)))
         (should (equal seq (list view1 view2 view99 view3)))
         ;; delete veemo
-        (ggui-delq view2 seq)
+        (ggui-remove-n view2 seq)
         (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nB" (buffer-string)))
         (should (equal seq (list view1 view99 view3)))
         ;; put view to seq
@@ -127,14 +127,14 @@ It also wraps everything in `save-excursion' for convenience."
         (ggui-put-after ssq view2)
         (should (equal "T\n\nveemo\n\nwoomy\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
         ;; car of ssq is seq, put at 2nd position
-        (ggui-insert-at view2 (car ssq) 1)
+        (ggui-insert-at-n view2 (car ssq) 1)
         (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
         ;; edit a element from a list
         (setf (ggui--text (nth 2 seq)) "love")
         (should (equal "T\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nmary\n\nB" (buffer-string)))
         ;; put seq at somewhere in ssq
-        (ggui-delq seq ssq)
-        (ggui-insert-at seq ssq 1)
+        (ggui-remove-n seq ssq)
+        (ggui-insert-at-n seq ssq 1)
         (should (equal "T\n\nmary\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nB" (buffer-string)))
         ))))
 

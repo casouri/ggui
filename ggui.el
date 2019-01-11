@@ -698,8 +698,7 @@ If N is negative, toggle backward N times."
 ;; For other generic sequences,
 ;; implement these generic functions for sequence:
 ;;
-;; ggui-delq
-;; ggui-delq-keep-length
+;; ggui-remove
 ;; ggui-insert-at
 ;; seq-elt
 ;; seq-find
@@ -708,81 +707,54 @@ If N is negative, toggle backward N times."
 
 ;;;;; ggui generic list function
 
-(cl-defgeneric ggui-delq (elt seq &optional compare-fn)
+(cl-defgeneric ggui-remove (elt seq &optional compare-fn)
   "Delete ELT from SEQ.
-Return the modified SEQ for convenience.
-
-If COMPARE-fn nil, use `eq', other options are `equal' and `eql'."
-  seq)
-
-(cl-defgeneric ggui-delq-keep-length (elt seq &optional compare-fn)
-  "Delete ELT from SEQ but keep length.
-That is, for elements that `eq' to ELT,
-set them to nil
 Return the modified SEQ for convenience.
 
 If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
 
+(defmacro ggui-remove-n (elt seq &optional compare-fn)
+  "(setf SEQ (ggui-remove ELT SEQ COMPARE-FN))"
+  `(setf ,seq (ggui-remove ,elt ,seq ,compare-fn)))
+
 (cl-defgeneric ggui-insert-at (elt seq n)
-  "Insert ELT into SEQ at Nth position. Destructive.
-Return SEQ for convenience."
-  seq)
+  "Insert ELT into SEQ at Nth position and return SEQ.
+This function is not destructive.")
+
+(defmacro ggui-insert-at-n (elt seq n)
+  "(setf SEQ (ggui-insert-at ELT SEQ N))."
+  `(setf ,seq (ggui-insert-at ,elt ,seq ,n)))
 
 
 ;;;;; Method implementation for list
 
-(cl-defmethod ggui-delq :after (elt seq &optional compare-fn)
-  (let ((new-seq (remove nil (ggui-delq-keep-length elt seq compare-fn))))
-    (setcar seq (car new-seq))
-    (setcdr seq (cdr new-seq))))
-
-(cl-defmethod ggui-delq-keep-length (elt (seq list) &optional compare-fn)
-  (let ((len (length seq))
-        (index 0)
-        (compare-fn (or compare-fn 'eq)))
-    (while (< index len)
-      (when (funcall compare-fn elt (nth index seq))
-        (setf (nth index seq) nil))
-      (cl-incf index)))
-  seq)
-
-(cl-defmethod ggui-insert-at :before (_1 seq _2)
-  (unless seq (signal 'invalid-argument '("SEQ is nil"))))
+(cl-defmethod ggui-remove :after (elt seq &optional compare-fn)
+  (let ((fn (or compare-fn #'eq)))
+    (seq-remove (lambda (elm)
+                  (funcall fn elm elt))
+                seq)))
 
 (cl-defmethod ggui-insert-at (elt (seq list) n)
-  (if (eq n 0)
-      (progn (setcdr seq (cons (car seq) (cdr seq)))
-             (setcar seq elt))
-    (setf (nthcdr n seq) (cons elt (nthcdr n seq))))
-  seq)
+  (seq-concatenate 'list (seq-subseq 0 (1- n))
+                   (list elt)
+                   (seq-subseq n (seq-length seq))))
 
 ;;;;; (Side effect) implementation for ggui-view
 
-;; no side effect for ggui-insert-at because you shouldn't use it
-;; directly
-
 (cl-defmethod ggui-insert-at :after ((view ggui-view) (seq sequence) n)
-  ;; do side effect first so we don't worry about position N
-  ;; changes when inserting VIEW
   (let* ((len (seq-length seq)))
     (if (= n len)
         (ggui-put-after view (seq-elt seq (1- len)))
-      (ggui-put-before view (seq-elt seq n))))
-  (cl-call-next-method view seq n))
+      (ggui-put-before view (seq-elt seq n)))))
 
-(cl-defmethod ggui-delq-keep-length :before ((view ggui-view) (seq sequence) &optional _)
+(cl-defmethod ggui-remove :before ((view ggui-view) (seq sequence) &optional _)
   (if (seq-find (lambda (elt) (eq elt view)) seq)
       (ggui--remove-display view)))
-
-;; doesn't do any thing since in our implementation,
-;; `ggui-delq' uses `ggui-delq-keep-length'
-(cl-defmethod ggui-delq :after ((_ ggui-view) _ &optional _)
-  nil)
 
 ;;;;; (Side effect) implementation for sequence
 
 ;; identical
-(cl-defmethod ggui-insert-at :before ((view sequence) (seq sequence) n)
+(cl-defmethod ggui-insert-at :after ((view sequence) (seq sequence) n)
   ;; do side effect first so we don't worry about position N
   ;; changes when inserting VIEW
   (let* ((len (seq-length seq)))
@@ -790,12 +762,9 @@ Return SEQ for convenience."
         (ggui-put-after view (seq-elt seq (1- len)))
       (ggui-put-before view (seq-elt seq n)))))
 
-(cl-defmethod ggui-delq-keep-length :before ((view sequence) (seq sequence) &optional _)
+(cl-defmethod ggui-remove :before ((view sequence) (seq sequence) &optional _)
   (if (seq-find (lambda (elt) (eq elt view)) seq)
       (ggui--remove-display view)))
-
-(cl-defmethod ggui-delq :after ((_ sequence) _ &optional _)
-  nil)
 
 ;;;;; Methods for ggui-view functions for list
 
@@ -1566,7 +1535,7 @@ nil if no suitable window can be found."
 (cl-defgeneric ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
   "Put CHILD under PARENT at position n."
   (setf (ggui--parent child) parent)
-  (ggui-insert-at child (ggui--children parent) n))
+  (ggui-insert-at-n child (ggui--children parent) n))
 
 (cl-defgeneric ggui-put-under-end ((child ggui-node) (parent ggui-node))
   "Put CHILD under PARENT at the end of its children list."
@@ -1654,7 +1623,7 @@ It view's text is set to TEXT and children is set to CHILDREN."
 
 (cl-defmethod ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
   "Put CHILD under PARENT at position n."
-  (ggui-insert-at (ggui--view child) (ggui--children parent) n)
+  (ggui-insert-at-n (ggui--view child) (ggui--children parent) n)
   (call-next-method child parent n))
 
 (cl-defmethod ggui-remove-from ((child ggui-node) (parent ggui-node))
