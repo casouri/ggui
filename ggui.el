@@ -439,22 +439,22 @@ When return, point is at the end of delimiters."
 ;; generic views you want to support.
 
 (cl-defgeneric ggui-put-before (a b)
-  "Insert A in front of B.
+  "Insert A before B.
 Return A."
   a)
 
 (cl-defgeneric ggui-put-after (a b)
-  "Insert A in front of B.
+  "Insert A after B.
 Return A."
   a)
 
 (cl-defmethod ggui-insert-before (str view)
-  "Insert STR in front of VIEW. VIEW cover STR.
+  "Insert STR before VIEW. VIEW cover STR.
 Return STR."
   str)
 
 (cl-defmethod ggui-insert-after (str view)
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
+  "Insert STR after VIEW. VIEW doesn't cover STR.
 Return STR."
   str)
 
@@ -556,11 +556,11 @@ Should: one and only one before point, one and only one after point."
 
 ;;;;;;; Remove before insert
 
-(cl-defmethod ggui-put-before :before ((aview ggui-view) (_ ggui-view))
+(cl-defmethod ggui-put-before :before ((aview ggui-view) _)
   "Remove AVIEW's display before adding it."
   (when (ggui--presentp aview) (ggui--remove-display aview)))
 
-(cl-defmethod ggui-put-after :before ((aview ggui-view) (_ ggui-view))
+(cl-defmethod ggui-put-after :before ((aview ggui-view) _)
   "Remove AVIEW's display before adding it."
   (when (ggui--presentp aview) (ggui--remove-display aview)))
 
@@ -710,7 +710,11 @@ If N is negative, toggle backward N times."
 (cl-defgeneric ggui-remove (elt seq &optional compare-fn)
   "Return a seq with ELT removed from SEQ.
 
-If COMPARE-fn is used to compare equality, default to `eq'.")
+If COMPARE-fn is used to compare equality, default to `eq'."
+  (let ((fn (or compare-fn #'eq)))
+    (seq-remove (lambda (elm)
+                  (funcall fn elm elt))
+                seq)))
 
 (defmacro ggui-remove-n (elt seq &optional compare-fn)
   "(setf SEQ (ggui-remove ELT SEQ COMPARE-FN))."
@@ -726,12 +730,6 @@ This function is not destructive.")
 
 
 ;;;;; Method implementation for list
-
-(cl-defmethod ggui-remove :after (elt seq &optional compare-fn)
-  (let ((fn (or compare-fn #'eq)))
-    (seq-remove (lambda (elm)
-                  (funcall fn elm elt))
-                seq)))
 
 (cl-defmethod ggui-insert-at :before (_ seq n)
   "Check"
@@ -776,16 +774,14 @@ This function is not destructive.")
 ;; seq to view
 (cl-defmethod ggui-put-before :after ((seq sequence) (view ggui-view))
   "Put every view in SEQ before VIEW, in normal order.
-E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
-This function is recursive."
+E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (ggui-put-before (seq-elt seq 0) view)
   (ggui-put-after (seq-subseq seq 1) (seq-elt seq 0)))
 
 (cl-defmethod ggui-put-after :after ((seq sequence) (view ggui-view))
   "Put every view in SEQ after VIEW, in normal order.
-E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
-This function is recursive."
+E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (let ((last-left view)
         (index 0)
@@ -826,15 +822,6 @@ This function is recursive."
 This function is recursive."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (seq-map #'ggui--remove-display seq))
-
-(cl-defmethod ggui-put-before :before ((seq sequence) (_ ggui-view))
-  "Remove AVIEW's display before adding it."
-  (ggui--remove-display seq))
-
-(cl-defmethod ggui-put-after :before ((seq sequence) (_ ggui-view))
-  "Remove AVIEW's display before adding it."
-  (ggui--remove-display seq))
-
 
 ;;;; App
 ;;
