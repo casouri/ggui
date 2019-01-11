@@ -733,10 +733,16 @@ This function is not destructive.")
                   (funcall fn elm elt))
                 seq)))
 
+(cl-defmethod ggui-insert-at :before (_ seq n)
+  "Check"
+  (when (or (< (seq-length seq) n)
+            (< n 0))
+    (signal 'args-out-of-range nil)))
+
 (cl-defmethod ggui-insert-at (elt (seq list) n)
-  (seq-concatenate 'list (seq-subseq 0 (1- n))
+  (seq-concatenate 'list (seq-subseq seq 0 n)
                    (list elt)
-                   (seq-subseq n (seq-length seq))))
+                   (seq-subseq seq n (seq-length seq))))
 
 ;;;;; (Side effect) implementation for ggui-view
 
@@ -1544,24 +1550,30 @@ nil if no suitable window can be found."
   "Put CHILD under PARENT at the beginning of its children list."
   (ggui-put-under-at child parent 0))
 
-(cl-defgeneric ggui-put-after ((node ggui-node) (node-after ggui-node))
-  "Put  NODE-AFTER after NODE under NODE's parent.
+(cl-defgeneric ggui-put-under-after ((node-after ggui-node) (node ggui-node))
+  "Put NODE-AFTER after NODE under NODE's parent.
 If NODE-BEFORE doesn't have parent, error."
   (let* ((parent (ggui--parent node))
-         (index-of-node (ggui--find-index node parent)))
+         (index-of-node (ggui--find-index node (ggui--children parent))))
     (ggui-put-under-at node-after parent (1+ index-of-node))))
 
-(cl-defgeneric ggui-put-before ((node ggui-node) (node-after ggui-node))
+(cl-defgeneric ggui-put-under-before ((node-before ggui-node) (node ggui-node))
   "Put  NODE-BEFORE before NODE under NODE's parent.
 If NODE-BEFORE doesn't have parent, error."
   (let* ((parent (ggui--parent node))
          (index-of-node (ggui--find-index node parent)))
-    (ggui-put-under-at node-after parent index-of-node)))
+    (ggui-put-under-at node-before parent index-of-node)))
 
 (cl-defgeneric ggui-remove-from ((child ggui-node) (parent ggui-node))
   "Remove CHILD from PARENT."
   (setf (ggui--parent child) nil)
+  ;; TODO use ggui-remove
   (setf (ggui--children parent) (remove child (ggui--children parent))))
+
+(cl-defmethod ggui--last-child-p ((node ggui-node))
+  "Return t if NODE is the last child in its parent's children list."
+  (let ((seq (ggui--children (ggui--parent node))))
+    (eq node (seq-elt seq (length seq)))))
 
 ;;;; indent-view
 
@@ -1587,50 +1599,27 @@ If NODE-BEFORE doesn't have parent, error."
   "Return the indent text for VIEW."
   (make-string (* 2 (ggui--indent-level view)) ?\s))
 
-;;;; nodeview
+;;;; node-view
 
-(ggui-defclass ggui-nodeview (ggui-indent-view)
-  ((node
-    :type ggui-viewnode
-    :documentation "The node that owns this view."))
-  "Used by `ggui-viewnode'.")
+(ggui-defclass ggui-node-view (ggui-indent-view ggui-node)
+  ()
+  "A node that is also a view.
+A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
-(cl-defmethod ggui--last-child-p ((node ggui-node))
-  "Return t if NODE is the last child in its parent's children list."
-  (let ((seq (ggui--children (ggui--parent node))))
-    (eq node (seq-elt seq (length seq)))))
+;;;;; Method of indent-view
 
-(cl-defmethod ggui--view-indent ((view ggui-nodeview))
+(cl-defmethod ggui--view-indent ((view ggui-node-view))
   (concat (if (ggui--last-child-p (ggui--node view))
               "└" "├")
           (1- (* 2 (ggui--indent-level view)))))
 
-;;;; viewnode
-
-(ggui-defclass ggui-viewnode (ggui-node)
-  ((view
-    :type ggui-view))
-  "A node with a textual representation.")
-
-(cl-defmethod initialize-instance :after ((node ggui-viewnode) &rest _)
-  (setf (ggui--node (ggui--view node)) node))
-
-(defun ggui-viewnode-new (text children)
-  "Return a `ggui-viewnode'.
-It view's text is set to TEXT and children is set to CHILDREN."
-  (ggui-viewnode :text text :children children))
-
-(cl-defmethod ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
+;;;;; Side effect of node
+(cl-defmethod ggui-put-under-at :before ((child ggui-node-view) (parent ggui-node-view) n)
   "Put CHILD under PARENT at position n."
-  (ggui-insert-at-n (ggui--view child) (ggui--children parent) n)
-  (call-next-method child parent n))
-
-(cl-defmethod ggui-remove-from ((child ggui-node) (parent ggui-node))
-  "Remove CHILD from PARENT."
-  (ggui--remove-display child)
-  (call-next-method child parent))
-
-
+  (let ((sister (nth n (ggui--children parent))))
+    (unless (cl-typep child 'ggui-node-view)
+      (signal 'invalid-slot-type (list "`ggui-node-view''s child have to be all `ggui-node-view's, this one is not:" child)))
+    (ggui-put-before child sister)))
 
 ;;;; Provide
 

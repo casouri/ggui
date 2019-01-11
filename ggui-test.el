@@ -144,6 +144,7 @@ It also wraps everything in `save-excursion' for convenience."
   (let* ((c1 (ggui-node))
          (c2 (ggui-node))
          (co (ggui-node))
+         (coo (ggui-node))
          (p1 (ggui-node :children (list c1 c2))))
     (should (eq (ggui--parent c1) (ggui--parent c2)))
     (should (eq (ggui--parent c1) p1))
@@ -153,7 +154,9 @@ It also wraps everything in `save-excursion' for convenience."
     (ggui-remove-from co p1)
     (should (equal (ggui--children p1) (list c1 c2)))
     (ggui-put-under-begin co p1)
-    (should (equal (ggui--children p1) (list co c1 c2)))))
+    (should (equal (ggui--children p1) (list co c1 c2)))
+    (ggui-put-under-after coo c1)
+    (should (equal (ggui--children p1) (list co c1 coo c2)))))
 
 ;;;; test app
 
