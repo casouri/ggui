@@ -710,7 +710,7 @@ If N is negative, toggle backward N times."
 (cl-defgeneric ggui-remove (elt seq &optional compare-fn)
   "Return a seq with ELT removed from SEQ.
 
-If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
+If COMPARE-fn is used to compare equality, default to `eq'.")
 
 (defmacro ggui-remove-n (elt seq &optional compare-fn)
   "(setf SEQ (ggui-remove ELT SEQ COMPARE-FN))."
