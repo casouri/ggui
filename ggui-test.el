@@ -151,25 +151,40 @@ It also wraps everything in `save-excursion' for convenience."
 (cl-defmethod initialize-instance :after ((page my-simple-page1) &rest _)
   (let ((buffer (get-buffer-create "HOME of page1")))
     (with-current-buffer buffer
+      (erase-buffer)
       (insert "HOME, sweet home."))
     (setf (ggui--buffer-alist page) (list (cons 'main-buffer buffer)))))
 
 (cl-defmethod initialize-instance :after ((page my-simple-page2) &rest _)
   (let ((buffer (get-buffer-create "COOL BUFFER2")))
     (with-current-buffer buffer
-      (insert "THIS IS A COOOOOL BUFFER, but belongs to page2.
-You can't edit anything because it's in read only mode."))
+      (ggui--edit
+       (erase-buffer)
+       (insert "THIS IS A COOOOOL BUFFER, but belongs to page2.
+You can't edit anything because it's in read only mode.")))
     (setf (ggui--buffer-alist page) (list (cons 'main-buffer buffer)))))
 
 (defvar page1-map (ggui-define-map "This is map for page 1.\n\n"
-                                   "C-c n" (ggui-fn-binding (lambda () (interactive) (ggui-segue-to 'page2))
+                                   "C-c n" (ggui-fn-binding (lambda () (ggui-segue-to 'page2))
                                                             "Next")
                                    "C-c q" (ggui-fn-binding #'ggui-quit-app "Quit")))
 
+(defvar page2-edit-map (ggui-define-map "Edit even it is read only.\n\n"
+                                        "i" (ggui-fn-binding (lambda ()
+                                                               (ggui-invoke-biggie
+                                                                (let ((buffer (current-buffer)))
+                                                                  (lambda (str) (with-current-buffer buffer
+                                                                                  (ggui--edit
+                                                                                   (goto-char (point-max))
+                                                                                   (insert "\n" str)))))
+                                                                (lambda ()))) "Insert" "Insert in the beginning")))
 (defvar page2-map (ggui-define-map "This is map for page 2.\n\n"
                                    "C-c n" (ggui-fn-binding (lambda () (interactive) (ggui-segue-to 'page1))
                                                             "Next")
-                                   "C-c q" (ggui-fn-binding #'ggui-quit-app "Quit")))
+                                   "C-c q" (ggui-fn-binding #'ggui-quit-app "Quit")
+                                   "C-c e" (ggui-map-binding page2-edit-map "Edit")))
+
+
 
 (cl-defmethod ggui-segue (_ (to my-simple-page1))
   (message "PAGE1 is here!")

@@ -33,6 +33,8 @@
 (require 'cl-lib)
 (require 'seq)
 
+;;;; Global configuration
+
 ;;;; Helper
 
 (defmacro ggui--edit (&rest body)
@@ -203,6 +205,22 @@ TODO Truly support CJK, instead of just han."
       (concat before-pad
               (substring str real-from real-to)
               after-pad))))
+
+;;;; Global hook
+
+(defvar ggui--after-buffer-change-hook ()
+  "This hook runs after buffer changes.")
+
+(defvar ggui--last-buffer nil
+  "Used by `ggui--after-buffer-change-hook'.")
+
+(defun ggui--maybe-run-after-buffer-change-hook ()
+  "As the name suggest."
+  (unless (eq ggui--last-buffer (current-buffer))
+    (run-hook-with-args 'ggui--after-buffer-change-hook)
+    (setq ggui--last-buffer (current-buffer))))
+
+(add-hook 'post-command-hook #'ggui--maybe-run-after-buffer-change-hook)
 
 ;;;; Error
 
@@ -720,6 +738,9 @@ N regards the SEQ after removing ELT.")
       (cl-incf index)))
   seq)
 
+(cl-defmethod ggui-insert-at (_1 seq _2)
+  (unless seq (signal 'invalid-argument '("SEQ is nil"))))
+
 (cl-defmethod ggui-insert-at (elt (seq list) n)
   (setf (nthcdr n seq) (cons elt (nthcdr n seq)))
   seq)
@@ -774,6 +795,7 @@ N regards the SEQ after removing ELT.")
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
 This function is recursive.
 Return nil."
+  (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (ggui-put-before (seq-elt seq 0) view)
   (ggui-put-after (seq-subseq seq 1) (seq-elt seq 0))
   nil)
@@ -783,6 +805,7 @@ Return nil."
 E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
 This function is recursive.
  Return nil."
+  (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (let ((last-left view)
         (index 0)
         (len (seq-length seq))
@@ -798,12 +821,14 @@ This function is recursive.
 (cl-defmethod ggui-put-before ((view ggui-view) (seq sequence))
   "Put VIEW before the first element of SEQ.
 Return nil."
+  (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (ggui-put-before view (seq-elt seq 0))
   nil)
 
 (cl-defmethod ggui-put-after ((view ggui-view) (seq sequence))
   "Put VIEW after the last element of SEQ.
 Return nil."
+  (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (ggui-put-after view (seq-elt seq (1- (seq-length seq))))
   nil)
 
@@ -811,18 +836,23 @@ Return nil."
 (cl-defmethod ggui-put-before ((seq1 sequence) (seq2 sequence))
   "Put VIEW before the first element of SEQ.
 Return nil."
+  (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
+  (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
   (ggui-put-before seq1 (seq-elt seq2 0))
   nil)
 
 (cl-defmethod ggui-put-after ((seq1 sequence) (seq2 sequence))
   "Put VIEW after the last element of SEQ.
 Return nil."
+  (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
+  (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
   (ggui-put-after seq1 (seq-elt seq2 (1- (seq-length seq2))))
   nil)
 
 (cl-defmethod ggui--remove-display ((seq sequence))
   "Remove display of SEQ.
 This function is recursive."
+  (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (seq-map #'ggui--remove-display seq))
 
 (cl-defmethod ggui-put-before :before ((seq sequence) (_ ggui-view))
@@ -931,7 +961,7 @@ Users can segue between pages.")
 (cl-defmethod ggui--open-app :before ((app ggui-app))
   "Setup hint and biggie buffer."
   (setf (ggui--hint-buffer app) (ggui-make-hint-buffer (format " *hint-%s*" (ggui--name app))))
-  (setf (ggui--biggiebuffer app) (generate-new-buffer (format " *biggie-%s*"(ggui--name app)))))
+  (setf (ggui--biggiebuffer app) (ggui--make-biggie-buffer (ggui--name app))))
 
 (cl-defgeneric ggui--hide-app ((app ggui-app))
   "Hide (but not quit) APP.")
@@ -977,6 +1007,10 @@ Users can segue between pages.")
 ;;
 ;; the entrance page of an app should implement a special
 ;; `ggui-segue' that accepts FROM to be nil, for obvious reason
+;;
+;; If you don't kill the buffers that the page creates when segueing out
+;; better erase the buffer before writing to it when segueing in,
+;;because you never know if the buffer has been setup or not.
 (cl-defgeneric ggui-segue ((from ggui-page) (to ggui-page))
   "Segue from FROM page to TO page.")
 
@@ -1000,94 +1034,6 @@ PAGE is a symbol representing the page in app's `ggui--page-alist'."
   "Get current frame's current page."
   `(or (frame-parameter nil 'ggui-page)
        (signal 'ggui-page-missing)))
-
-;;;; Biggiebuffer
-;;
-;; each app has a single biggiebuffer that shares history
-
-;;;;; Variable, command, minor mode
-
-(defvar-local ggui-biggie-history nil
-  "A list of user input history of biggiebuffer.")
-
-(defvar-local ggui-biggie-finish-fn nil
-  "The finish function used in `ggui-biggie-finish'.")
-
-(defvar-local ggui-biggie-abort-fn nil
-  "The abort function used in `ggui-biggie-abort'.")
-
-(defvar-local ggui-biggie-update-fn nil
-  "The update function used in `ggui-biggie-update'.")
-
-(defvar ggui-biggie-pop-fn nil ;; TODO defualt pop function
-  "Functions used to display biggiebuffer.
-Takes one argument, the biggiebuffer, and returns the window
-No assumptions about the position of the point.")
-
-(define-minor-mode ggui-biggie-mode
-  "Minor mode of biggiebuffer."
-  :lighter " BIGGIE"
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c C-c") #'ggui-biggie-finish)
-            (define-key map (kbd "C-c C-k") #'ggui-biggie-abort)
-            map))
-
-(define-minor-mode ggui-biggie-update-mode
-  "In this mode biggiebuffer updates after every command."
-  :lighter ""
-  (if ggui-biggie-update-mode
-      (add-hook 'after-change-functions #'ggui-biggie-update t t)
-    (remove-hook 'after-change-functions #'ggui-biggie-update t)))
-
-(defun ggui-biggie-finish ()
-  "Finish with current content."
-  (interactive)
-  (ggui-biggie-update-mode -1)
-  (add-to-list 'ggui-biggie-history (buffer-string))
-  (if ggui-biggie-finish-fn
-      (funcall ggui-biggie-finish-fn (buffer-string))
-    (ggui-log 'warn "No `ggui-biggie-finish-fn' specified.")))
-
-(defun ggui-biggie-abort ()
-  "Abort with current content."
-  (interactive)
-  (ggui-biggie-update-mode -1)
-  (if ggui-biggie-abort-fn
-      (funcall ggui-biggie-abort-fn (buffer-string))
-    (ggui-log 'warn "No `ggui-biggie-abort-fn' specified.")))
-
-(defun ggui-biggie-update (_ _1 _2)
-  "Update with current content."
-  (if ggui-biggie-update-fn
-      (fucnall ggui-biggie-update-fn (buffer-string))
-    (ggui-log 'warn "No `ggui-biggie-update-fn' specified.")))
-
-;;;;; Internal API
-
-(defun ggui-invoke-biggie (finish-callback abort-callback &optional update-callback)
-  "Invoke biggiebuffer with FINISH-CALLBACK and ABORT-CALLBACK.
-FINISH-CALLBACK is called with biggiebuffer's content when the user finish,
-ABORT-CALLBACK is called with biggiebuffer's content when the user abort.
-If non-nil, UPDATE-CALLBACK will be called with biggiebuffer's content
-whenever biggiebuffer's content has changed.
-
-This function should be called inside other functions for a user input."
-  (select-window (ggui-pop-biggie (frame-parameter nil 'ggui-page)))
-  (if (eq (current-buffer) (ggui--buggiebuffer (frame-parameter nil 'ggui-app)))
-      (progn
-        (setq ggui-biggie-finish-fn finish-callback
-              ggui-biggie-abort-fn abort-callback
-              ggui-biggie-update-fn update-callback)
-        (if update-callback
-            (ggui-biggie-update-mode)
-          (ggui-biggie-update-mode -1)))))
-
-(cl-defgeneric ggui-pop-biggie ((page ggui-page))
-  "Pop a buggiebuffer. Specific location of the window and size
-depends on each PAGE. By default use a side window.
-Return the window used for displaying biggiebuffer,
-nil if no suitable window can be found."
-  (display-buffer-in-side-window (ggui--biggiebuffer) '((side . bottom))))
 
 ;;;; Hint buffer
 ;; Hint buffer displays the available bindings and
@@ -1127,6 +1073,9 @@ Similar to `ggui-biggie-pop-fn', this function takes the hint buffer
 as argument and returns the window it is displayed in.
 No assumptions about the position of the point.")
 
+(defvar ggui-hint-buffer-mode-line-format nil
+  "Mode line format of hint buffer.")
+
 ;;;;; Buffer
 
 (defvar-local ggui--hint-doc nil
@@ -1139,11 +1088,31 @@ No assumptions about the position of the point.")
   "Return a hint buffer with NAME."
   (let ((buffer (ggui--setup-buffer (generate-new-buffer name))))
     (with-current-buffer buffer
+      (setq mode-line-format ggui-hint-buffer-mode-line-format)
       (ggui-put-after (setq ggui--hint-doc (ggui-view-new " "))
                       ggui--top-view)
       (ggui-put-before (setq ggui--hint-binding (ggui-view-new " "))
                        ggui--bottom-view))
     buffer))
+
+;;;;; Default hint
+
+(defvar-local ggui--default-hint '("" "")
+  "Default hint of the buffer. It is a list like '(doc bindign).
+Don't set this to nil.")
+
+(defun ggui--hint-recover-default-hint ()
+  "Recover the default hint for the current buffer."
+  ;; run when:
+  ;; buffer changes
+  ;; a command in a `ggui-map' runs
+  (when-let (app (ignore-errors (ggui-this-app)))
+    (setf (ggui--hint-doc app)
+          (nth 0 ggui--default-hint)
+          (ggui--hint-binding app)
+          (nth 1 ggui--default-hint))))
+
+(add-hook 'ggui--after-buffer-change-hook #'ggui--hint-recover-default-hint)
 
 ;;;;; Virtual slot for ggui-app
 
@@ -1200,6 +1169,11 @@ This map only activates for one command."
   "Activate `ggui-map' GMAP in the current buffer and display hint.
 
 Unlike `ggui-use-map', MAP is persistent."
+  (setq ggui--default-hint (list (ggui-map-doc gmap)
+                                 (ggui--map-to-hint
+                                  (ggui-map-map gmap)
+                                  (ggui--buffer-window
+                                   (ggui--hint-buffer (ggui-this-app))))))
   (use-local-map (ggui-map-map gmap))
   (ggui--display-map-hint gmap))
 
@@ -1212,32 +1186,20 @@ Normally you want to add two newline in the end of DOC.
 
 BINDING-LIST looks like
 
-    KEY DEFINITION
-    KEY DEFINITION
-
-KEY is passed to `kbd' before use.
-
-as in `define-key'. It is recommended to add a short description:
-
-    KEY '(\"DESCRIPTION\" . DEFINITION)
-
-or even a help tooltip:
-
-    KEY '(\"DESCRIPTION\" \"HELP\" . DEFINITION)
-
-
-so the hint buffer can show a more friendly description of the command.
-If you don't add description, `ggui-use-map' will use the command name as the description.
-
-For convenience, you can simply write
-
     KEY (ggui-map-binding ggui-map \"DESCRIPTION\" \"HELP\")
 
 for `ggui-maps' and
 
     KEY (ggui-fn-binding func \"DESCRIPTION\" \"HELP\")
 
-for other normal definitions (normal keymap, function, lambda, etc)."
+for other normal definitions (normal keymap, function, lambda, etc).
+
+DESCRIPTION is a friendly name shown in hint buffer besides the key
+HELP is a mouse hover tooltip.
+
+You should only use `ggui-fn-binding
+and `ggui-map-binding' in a `ggui-map' definition (this one).
+Because they instrument the function(map) and do other things."
   (make-ggui-map :doc doc :map (let ((map (make-sparse-keymap)))
                                  (while binding-list
                                    (let ((key (pop binding-list))
@@ -1253,8 +1215,8 @@ MAP is a `ggui-map', it can be either symbol or the actual map.
 NAME is the name displaced in hint buffer,
 HELP is the optional help tooltip."
   (if help
-      `(,name ,help . (lambda () (ggui-use-map ,map)))
-    `(,name . (lambda () (ggui-use-map ,map)))))
+      `(,name ,help . (lambda () (interactive) (ggui-use-map ,map)))
+    `(,name . (lambda () (interactive) (ggui-use-map ,map)))))
 
 (defun ggui-fn-binding (fn name &optional help)
   "Return a valid keymap binding.
@@ -1264,8 +1226,12 @@ FN is a function.
 NAME is the name displaced in hint buffer,
 HELP is the optional help tooltip."
   (if help
-      `(,name ,help . ,fn)
-    `(,name . ,fn)))
+      `(,name ,help . (lambda () (interactive)
+                        (ggui--hint-recover-default-hint)
+                        (funcall #',fn)))
+    `(,name . (lambda () (interactive)
+                (ggui--hint-recover-default-hint)
+                (funcall #',fn)))))
 
 ;;;;; Backstage
 
@@ -1463,6 +1429,120 @@ large (deep) keymaps."
                                         (car def)) ; previous key
                                 (cdr def)))
             def-lst)))
+
+;;;; Biggiebuffer
+;;
+;; each app has a single biggiebuffer that shares history
+
+;;;;; Variable, command, minor mode
+
+(defvar ggui-biggie-mode-line-format nil
+  "Mode line format of biggie buffer.")
+
+(defvar-local ggui-biggie-history nil
+  "A list of user input history of biggiebuffer.")
+
+(defvar-local ggui-biggie-finish-fn nil
+  "The finish function used in `ggui-biggie-finish'.")
+
+(defvar-local ggui-biggie-abort-fn nil
+  "The abort function used in `ggui-biggie-abort'.")
+
+(defvar-local ggui-biggie-update-fn nil
+  "The update function used in `ggui-biggie-update'.")
+
+(defvar ggui-biggie-pop-fn
+  (lambda (_) (let ((window (display-buffer-in-side-window
+                             (ggui--biggiebuffer (ggui-this-app))
+                             '((side . bottom) (slot . -1)))))
+                (or window ;; TODO look into it
+                    (pop-to-buffer (ggui--biggiebuffer (ggui-this-app))))))
+  "Functions used to display biggiebuffer.
+
+Takes one argument, the current page, and returns the window.
+
+This function is only used when the current `ggui-page'
+doesn't implement its specific pop up function (`ggui--pop-biggie').")
+
+(defvar ggui--biggie-map (ggui-define-map "GGUI biggiebuffer\n\n"
+                                          "C-c C-c" (ggui-fn-binding #'ggui-biggie-finish "Finish")
+                                          "C-c C-k" (ggui-fn-binding #'ggui-biggie-abort "Abort"))
+  "`ggui--map' for biggiebuffer.")
+
+(define-minor-mode ggui-biggie-update-mode
+  "In this mode biggiebuffer updates after every command."
+  :lighter ""
+  (if ggui-biggie-update-mode
+      (add-hook 'ggui--after-change-functions #'ggui-biggie-update t t)
+    (remove-hook 'ggui--after-change-functions #'ggui-biggie-update t)))
+
+(defun ggui-biggie-finish ()
+  "Finish with current content."
+  (interactive)
+  (let ((ggui-biggie-window (selected-window)))
+    (ggui-biggie-update-mode -1)
+    (add-to-list 'ggui-biggie-history (buffer-string))
+    (if ggui-biggie-finish-fn
+        (funcall ggui-biggie-finish-fn (buffer-string))
+      (ggui-log 'warn "No `ggui-biggie-finish-fn' specified."))
+    (delete-window ggui-biggie-window)))
+
+(defun ggui-biggie-abort ()
+  "Abort with current content."
+  (interactive)
+  (ggui-biggie-update-mode -1)
+  (if ggui-biggie-abort-fn
+      (funcall ggui-biggie-abort-fn (buffer-string))
+    (ggui-log 'warn "No `ggui-biggie-abort-fn' specified.")))
+
+(defun ggui-biggie-update (_ _1 _2)
+  "Update with current content."
+  (if ggui-biggie-update-fn
+      (fucnall ggui-biggie-update-fn (buffer-string))
+    (ggui-log 'warn "No `ggui-biggie-update-fn' specified.")))
+
+;;;;; Internal API
+
+(defun ggui--make-biggie-buffer (name)
+  "Create a new biggiebuffer bas on NAME."
+  (let ((buf (generate-new-buffer (format " *biggie-%s*"name))))
+    (with-current-buffer buf
+      (setq mode-line-format ggui-biggie-mode-line-format))
+    buf))
+
+(defun ggui-invoke-biggie (finish-callback abort-callback &optional update-callback)
+  "Invoke biggiebuffer with FINISH-CALLBACK and ABORT-CALLBACK.
+
+FINISH-CALLBACK is called with biggiebuffer's content when the user finish,
+
+ABORT-CALLBACK is called with biggiebuffer's content when the user abort.
+If non-nil, UPDATE-CALLBACK will be called with biggiebuffer's content
+whenever biggiebuffer's content has changed.
+
+This function should be called inside other functions for a user input."
+  (let ((old-hint-doc (ggui--hint-doc (ggui-this-app)))
+        (old-hint-binding (ggui--hint-binding (ggui-this-app))))
+    (select-window (ggui--pop-biggie (ggui-this-page)))
+    (switch-to-buffer (ggui--biggiebuffer (ggui-this-app)))
+    (setq ggui-biggie-finish-fn (lambda (str)
+                                  (funcall finish-callback str)
+                                  (setf (ggui--hint-doc (ggui-this-app))
+                                        old-hint-doc
+                                        (ggui--hint-binding (ggui-this-app))
+                                        old-hint-binding))
+          ggui-biggie-abort-fn abort-callback
+          ggui-biggie-update-fn update-callback)
+    (ggui-use-map-default ggui--biggie-map)
+    (if update-callback
+        (ggui-biggie-update-mode)
+      (ggui-biggie-update-mode -1))))
+
+(cl-defgeneric ggui--pop-biggie ((page ggui-page))
+  "Pop a buggiebuffer. Specific location of the window and size
+depends on each PAGE. By default use a side window.
+Return the window used for displaying biggiebuffer,
+nil if no suitable window can be found."
+  (funcall ggui-biggie-pop-fn (ggui-this-page)))
 
 ;;;; Provide
 
