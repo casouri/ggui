@@ -144,24 +144,6 @@ It also wraps everything in `save-excursion' for convenience."
 (ggui-defclass my-simple-page1 (ggui-page) ())
 (ggui-defclass my-simple-page2 (ggui-page) ())
 
-(define-minor-mode my-simple-page1-mode
-  "My-Simple-Page1 mode."
-  :lighter " PAGE2"
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c n") (lambda () (interactive) (ggui-segue-to 'page2)))
-            (define-key map (kbd "C-c q") #'qqui-quit-app)
-            (define-key map (kbd "C-c q") #'qqui-hide-app)
-            map))
-
-(define-minor-mode my-simple-page2-mode
-  "My-Simple-Page2 mode."
-  :lighter " PAGE1"
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c n") (lambda () (interactive) (ggui-segue-to 'page1)))
-            (define-key map (kbd "C-c q") #'qqui-quit-app)
-            (define-key map (kbd "C-c q") #'qqui-hide-app)
-            map))
-
 (cl-defmethod initialize-instance :after ((app my-simple-app) &rest _)
   (setf (ggui--page-alist app) (list (cons 'page1 (my-simple-page1 :app app))
                                      (cons 'page2 (my-simple-page2 :app app)))))
@@ -179,12 +161,23 @@ It also wraps everything in `save-excursion' for convenience."
 You can't edit anything because it's in read only mode."))
     (setf (ggui--buffer-alist page) (list (cons 'main-buffer buffer)))))
 
+(defvar page1-map (ggui-define-map "This is map for page 1.\n\n"
+                                   "C-c n" (ggui-fn-binding (lambda () (interactive) (ggui-segue-to 'page2))
+                                                            "Next")
+                                   "C-c q" (ggui-fn-binding #'ggui-quit-app "Quit")))
+
+(defvar page2-map (ggui-define-map "This is map for page 2.\n\n"
+                                   "C-c n" (ggui-fn-binding (lambda () (interactive) (ggui-segue-to 'page1))
+                                                            "Next")
+                                   "C-c q" (ggui-fn-binding #'ggui-quit-app "Quit")))
+
 (cl-defmethod ggui-segue (_ (to my-simple-page1))
   (message "PAGE1 is here!")
   ;; setup window layout
   (delete-other-windows)
   (switch-to-buffer (alist-get 'main-buffer (ggui--buffer-alist to)))
-  (my-simple-page1-mode))
+  (display-buffer-in-side-window (ggui--hint-buffer (ggui-this-app)) '((side . bottom)))
+  (ggui-use-map-default page1-map))
 
 (cl-defmethod ggui-segue :before ((_ my-simple-page1) __)
   (message "My simple page1 leaving!"))
@@ -193,7 +186,8 @@ You can't edit anything because it's in read only mode."))
   (message "PAGE2 is here!")
   (delete-other-windows)
   (switch-to-buffer (alist-get 'main-buffer (ggui--buffer-alist to)))
-  (my-simple-page2-mode)
+  (display-buffer-in-side-window (ggui--hint-buffer (ggui-this-app)) '((side . bottom)))
+  (ggui-use-map-default page2-map)
   (read-only-mode))
 
 (cl-defmethod ggui--open-app ((app my-simple-app))
@@ -211,9 +205,11 @@ You can't edit anything because it's in read only mode."))
 (cl-defmethod ggui--hide-app ((app my-simple-app))
   ())
 
+(defvar my-simple-app nil)
+
 (defun my-simple-app-start ()
   "Start my-simple-app."
   (interactive)
-  (ggui--open-app (my-simple-app)))
+  (ggui--open-app (setq my-simple-app (my-simple-app))))
 
 ;;; ggui-test ends here

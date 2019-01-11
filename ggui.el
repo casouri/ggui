@@ -131,6 +131,11 @@ If STR is shorter than LEN, spaces are padded on the SIDE."
           (ggui--visual-substring str 0 len))
       (concat str (make-string (- len real-len) ?\s)))))
 
+(defun ggui--buffer-window (buffer &optional frame)
+  "Return the first window in FRAME found that displays BUFFER.
+current frame is used when FRAME is nil."
+  (seq-find (lambda (wind) (eq (window-buffer) buffer)) (window-list frame nil)))
+
 ;;;;; CJK length
 
 (defun ggui--hanp (char)
@@ -923,7 +928,7 @@ Users can segue between pages.")
 (cl-defgeneric ggui--open-app ((app ggui-app))
   "Open APP.")
 
-(cl-defmethod ggui--open-app :after ((app ggui-app))
+(cl-defmethod ggui--open-app :before ((app ggui-app))
   "Setup hint and biggie buffer."
   (setf (ggui--hint-buffer app) (ggui-make-hint-buffer (format " *hint-%s*" (ggui--name app))))
   (setf (ggui--biggiebuffer app) (generate-new-buffer (format " *biggie-%s*"(ggui--name app)))))
@@ -986,15 +991,15 @@ PAGE is a symbol representing the page in app's `ggui--page-alist'."
 
 ;;;;; Helpers
 
-(defun ggui--this-app ()
+(defmacro ggui-this-app ()
   "Get current frame's app"
-  (or (frame-parameter nil 'ggui-app)
-      (signal 'ggui-app-missing)))
+  `(or (frame-parameter nil 'ggui-app)
+       (signal 'ggui-app-missing)))
 
-(defun ggui--this-page ()
+(defmacro ggui-this-page ()
   "Get current frame's current page."
-  (or (frame-parameter nil 'ggui-page)
-      (signal 'ggui-page-missing)))
+  `(or (frame-parameter nil 'ggui-page)
+       (signal 'ggui-page-missing)))
 
 ;;;; Biggiebuffer
 ;;
@@ -1058,10 +1063,6 @@ No assumptions about the position of the point.")
     (ggui-log 'warn "No `ggui-biggie-update-fn' specified.")))
 
 ;;;;; Internal API
-
-(defun ggui--biggiebuffer ()
-  "Return the biggie-buffer of current app (of the selected frame)."
-  (ggui--biggiebuffer (frame-parameter nil 'ggui-app)))
 
 (defun ggui-invoke-biggie (finish-callback abort-callback &optional update-callback)
   "Invoke biggiebuffer with FINISH-CALLBACK and ABORT-CALLBACK.
@@ -1144,7 +1145,7 @@ No assumptions about the position of the point.")
                        ggui--bottom-view))
     buffer))
 
-;;;;; Virtual slot of ggui-app
+;;;;; Virtual slot for ggui-app
 
 (cl-defmethod (setf ggui--hint-doc) (instruction (app ggui-app))
   "Display INSTRUCTION in the doc part of the hint buffer of APP.
@@ -1207,6 +1208,8 @@ Unlike `ggui-use-map', MAP is persistent."
 DOC is the full description,
 and BINDING-LIST are key bindings.
 
+Normally you want to add two newline in the end of DOC.
+
 BINDING-LIST looks like
 
     KEY DEFINITION
@@ -1268,10 +1271,11 @@ HELP is the optional help tooltip."
 
 (defun ggui--display-map-hint (gmap)
   "Display `ggui-map' GMAP's documentation and bindings in hint buffer."
-  (setf (ggui--hint-doc (ggui--this-app)) (ggui-map-doc gmap))
-  (setf (ggui--hint-binding (ggui--this-app)) (ggui--map-to-hint gmap)))
+  (setf (ggui--hint-doc (ggui-this-app)) (ggui-map-doc gmap))
+  (setf (ggui--hint-binding (ggui-this-app))
+        (ggui--map-to-hint (ggui-map-map gmap) (ggui--buffer-window (ggui--hint-buffer (ggui-this-app))))))
 
-(defsubst ggui--hint-len (hint)
+(defun ggui--hint-len (hint)
   "Return the length of HINT.
 
 Example of HINT: (\"C-c C-c\" . \"Finish\")."
@@ -1459,14 +1463,6 @@ large (deep) keymaps."
                                         (car def)) ; previous key
                                 (cdr def)))
             def-lst)))
-
-(defun ggui--gmap-to-hint (gmap)
-  "Generate a binding hint (like which-key) from `ggui-map' GMAP."
-  ;; Translate each binding to a text entry and gather into a list
-  ()
-  (let ((window-width (window-width))
-        (entry-lst ()))
-    ))
 
 ;;;; Provide
 
