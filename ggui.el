@@ -33,8 +33,6 @@
 (require 'cl-lib)
 (require 'seq)
 
-;;;; Global configuration
-
 ;;;; Helper
 
 (defmacro ggui--edit (&rest body)
@@ -137,6 +135,19 @@ If STR is shorter than LEN, spaces are padded on the SIDE."
   "Return the first window in FRAME found that displays BUFFER.
 current frame is used when FRAME is nil."
   (seq-find (lambda (wind) (eq (window-buffer) buffer)) (window-list frame nil)))
+
+(defun ggui--find-index (elt lst &optional compare-fn)
+  "Find ELT's position in LST and return it.
+Compare with COMPARE-FN, if it's nil, use `eq'.
+
+Return nil if no match is found."
+  (catch 'found
+    (let ((idx 0))
+      (seq-doseq (elm lst)
+        (when (funcall (or compare-fn #'eq) elt elm)
+          (throw 'found idx))
+        (cl-incf idx))
+      nil)))
 
 ;;;;; CJK length
 
@@ -742,7 +753,10 @@ N regards the SEQ after removing ELT.")
   (unless seq (signal 'invalid-argument '("SEQ is nil"))))
 
 (cl-defmethod ggui-insert-at (elt (seq list) n)
-  (setf (nthcdr n seq) (cons elt (nthcdr n seq)))
+  (if (eq n 0)
+      (progn (setcdr seq (cons (car seq) (cdr seq)))
+             (setcar seq elt))
+    (setf (nthcdr n seq) (cons elt (nthcdr n seq))))
   seq)
 
 ;;;;; Implementation for ggui-view
@@ -1543,6 +1557,52 @@ depends on each PAGE. By default use a side window.
 Return the window used for displaying biggiebuffer,
 nil if no suitable window can be found."
   (funcall ggui-biggie-pop-fn (ggui-this-page)))
+
+
+;;;; Node
+
+;;;;; Class
+(ggui-defclass ggui-node ()
+  ((parent
+    :type (or null ggui-node)
+    :initform nil
+    :documentation "The parent of this node.")
+   (children
+    :type list
+    :initform nil
+    :documentation "A list of children."))
+  "A node in a tree.")
+
+(cl-defmethod initialize-instance :after ((node ggui-node) &rest _)
+  (dolist (child (ggui--children node))
+    (setf (ggui--parent child) node)))
+
+;;;;; Methods
+
+(cl-defmethod ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
+  "Put CHILD under PARENT at position n."
+  (setf (ggui--parent child) parent)
+  (ggui-insert-at child (ggui--children parent) n))
+
+(cl-defmethod ggui-put-under-end ((child ggui-node) (parent ggui-node))
+  "Put CHILD under PARENT at the end of its children list."
+  (ggui-put-under-at child parent (length (ggui--children parent))))
+
+(cl-defmethod ggui-put-under-begin ((child ggui-node) (parent ggui-node))
+  "Put CHILD under PARENT at the beginning of its childfren list."
+  (ggui-put-under-at child parent 0))
+
+(cl-defmethod ggui-put-after ((node ggui-node) (node-after ggui-node))
+  "Put  NODE-AFTER after NODE under NODE's parent.
+If NODE-BEFORE doesn't have parent, error."
+  (let* ((parent (ggui--parent node))
+         (index-of-node (ggui--find-index node parent)))
+    (ggui-put-under-at node-after parent (1+ index-of-node))))
+
+(cl-defmethod ggui-remove-from ((child ggui-node) (parent ggui-node))
+  "Remove CHILD from PARENT."
+  (setf (ggui--parent child) nil)
+  (setf (ggui--children parent) (remove child (ggui--children parent))))
 
 ;;;; Provide
 

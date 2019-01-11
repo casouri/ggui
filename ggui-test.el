@@ -138,6 +138,23 @@ It also wraps everything in `save-excursion' for convenience."
         (should (equal "T\n\nmary\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nB" (buffer-string)))
         ))))
 
+;;;; node
+
+(ert-deftest ggui-node ()
+  (let* ((c1 (ggui-node))
+         (c2 (ggui-node))
+         (co (ggui-node))
+         (p1 (ggui-node :children (list c1 c2))))
+    (should (eq (ggui--parent c1) (ggui--parent c2)))
+    (should (eq (ggui--parent c1) p1))
+    (should (equal (ggui--children p1) (list c1 c2)))
+    (ggui-put-under-end co p1)
+    (should (equal (ggui--children p1) (list c1 c2 co)))
+    (ggui-remove-from co p1)
+    (should (equal (ggui--children p1) (list c1 c2)))
+    (ggui-put-under-begin co p1)
+    (should (equal (ggui--children p1) (list co c1 c2)))))
+
 ;;;; test app
 
 (ggui-defclass my-simple-app (ggui-app) ((name :initform "my simple app")))
