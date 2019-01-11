@@ -438,13 +438,26 @@ When return, point is at the end of delimiters."
 ;; Implement at least ggui-put-before/after for
 ;; generic views you want to support.
 
-(cl-defgeneric ggui-put-before (str view)
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil.")
+(cl-defgeneric ggui-put-before (a b)
+  "Insert A in front of B.
+Return A."
+  a)
 
-(cl-defgeneric ggui-put-after (str view)
+(cl-defgeneric ggui-put-after (a b)
+  "Insert A in front of B.
+Return A."
+  a)
+
+(cl-defmethod ggui-insert-before (str view)
+  "Insert STR in front of VIEW. VIEW cover STR.
+Return STR."
+  str)
+
+(cl-defmethod ggui-insert-after (str view)
   "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil.")
+Return STR."
+  str)
+
 
 (defun ggui--check-delimiter ()
   "Check if delimiters are correctly setup.
@@ -491,9 +504,7 @@ Should: one and only one before point, one and only one after point."
 
 ;;;;;; String (probably shouldn't add string to views)
 
-(cl-defmethod ggui-put-before ((str string) (view ggui-view))
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil."
+(cl-defmethod ggui-put-before :after ((str string) (view ggui-view))
   (ggui--edit
    (goto-char (1- (ggui--beg view)))
    ;; now we are between the two delimiters
@@ -502,9 +513,7 @@ Return nil."
    (backward-char)
    (insert str)))
 
-(cl-defmethod ggui-put-after ((str string) (view ggui-view))
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil."
+(cl-defmethod ggui-put-after :after ((str string) (view ggui-view))
   (ggui--edit
    (goto-char (1+ (ggui--end view)))
    (ggui--check-delimiter)
@@ -512,25 +521,19 @@ Return nil."
    (forward-char)
    (insert str)))
 
-(cl-defmethod ggui-insert-before ((str string) (view ggui-view))
-  "Insert STR in front of VIEW. VIEW cover STR.
-Return nil."
+(cl-defmethod ggui-insert-before :after ((str string) (view ggui-view))
   (ggui--edit
    (goto-char (ggui--beg view))
    (insert str)))
 
-(cl-defmethod ggui-insert-after ((str string) (view ggui-view))
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil."
+(cl-defmethod ggui-insert-after :after ((str string) (view ggui-view))
   (ggui--edit
    (goto-char (ggui--end view))
    (insert str)))
 
 ;;;;;; View
 
-(cl-defmethod ggui-put-before ((aview ggui-view) (view ggui-view))
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil."
+(cl-defmethod ggui-put-before :after ((aview ggui-view) (view ggui-view))
   (ggui--edit
    (goto-char (1- (ggui--beg view)))
    ;; now we are between the two delimiters
@@ -542,9 +545,7 @@ Return nil."
    (ggui--move-overlay aview (point) (point))
    (insert (ggui--text aview))))
 
-(cl-defmethod ggui-put-after ((aview ggui-view) (view ggui-view))
-  "Insert STR in front of VIEW. VIEW doesn't cover STR.
-Return nil."
+(cl-defmethod ggui-put-after :after ((aview ggui-view) (view ggui-view))
   (ggui--edit
    (goto-char (1+ (ggui--end view)))
    (ggui--check-delimiter)
@@ -688,7 +689,7 @@ If N is negative, toggle backward N times."
       (ggui--overlay-put view 'invisible nil)
     (signal 'ggui-view-not-present)))
 
-;;;; List and tree
+;;;; List
 ;;
 ;; Use the list manipulation functions below
 ;; to keep `ggui-view's in the list in sync
@@ -711,7 +712,8 @@ If N is negative, toggle backward N times."
   "Delete ELT from SEQ.
 Return the modified SEQ for convenience.
 
-If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
+If COMPARE-fn nil, use `eq', other options are `equal' and `eql'."
+  seq)
 
 (cl-defgeneric ggui-delq-keep-length (elt seq &optional compare-fn)
   "Delete ELT from SEQ but keep length.
@@ -723,16 +725,16 @@ If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
 
 (cl-defgeneric ggui-insert-at (elt seq n)
   "Insert ELT into SEQ at Nth position. Destructive.
-Return SEQ for convenience.")
+Return SEQ for convenience."
+  seq)
 
 
 ;;;;; Method implementation for list
 
-(cl-defmethod ggui-delq (elt seq &optional compare-fn)
+(cl-defmethod ggui-delq :after (elt seq &optional compare-fn)
   (let ((new-seq (remove nil (ggui-delq-keep-length elt seq compare-fn))))
     (setcar seq (car new-seq))
-    (setcdr seq (cdr new-seq)))
-  seq)
+    (setcdr seq (cdr new-seq))))
 
 (cl-defmethod ggui-delq-keep-length (elt (seq list) &optional compare-fn)
   (let ((len (length seq))
@@ -744,7 +746,7 @@ Return SEQ for convenience.")
       (cl-incf index)))
   seq)
 
-(cl-defmethod ggui-insert-at (_1 seq _2)
+(cl-defmethod ggui-insert-at :before (_1 seq _2)
   (unless seq (signal 'invalid-argument '("SEQ is nil"))))
 
 (cl-defmethod ggui-insert-at (elt (seq list) n)
@@ -754,12 +756,12 @@ Return SEQ for convenience.")
     (setf (nthcdr n seq) (cons elt (nthcdr n seq))))
   seq)
 
-;;;;; Implementation for ggui-view
+;;;;; (Side effect) implementation for ggui-view
 
 ;; no side effect for ggui-insert-at because you shouldn't use it
 ;; directly
 
-(cl-defmethod ggui-insert-at ((view ggui-view) (seq sequence) n)
+(cl-defmethod ggui-insert-at :after ((view ggui-view) (seq sequence) n)
   ;; do side effect first so we don't worry about position N
   ;; changes when inserting VIEW
   (let* ((len (seq-length seq)))
@@ -777,17 +779,16 @@ Return SEQ for convenience.")
 (cl-defmethod ggui-delq :after ((_ ggui-view) _ &optional _)
   nil)
 
-;;;;; Implementation for sequence
+;;;;; (Side effect) implementation for sequence
 
 ;; identical
-(cl-defmethod ggui-insert-at ((view sequence) (seq sequence) n)
+(cl-defmethod ggui-insert-at :before ((view sequence) (seq sequence) n)
   ;; do side effect first so we don't worry about position N
   ;; changes when inserting VIEW
   (let* ((len (seq-length seq)))
     (if (= n len)
         (ggui-put-after view (seq-elt seq (1- len)))
-      (ggui-put-before view (seq-elt seq n))))
-  (cl-call-next-method view seq n))
+      (ggui-put-before view (seq-elt seq n)))))
 
 (cl-defmethod ggui-delq-keep-length :before ((view sequence) (seq sequence) &optional _)
   (if (seq-find (lambda (elt) (eq elt view)) seq)
@@ -799,21 +800,18 @@ Return SEQ for convenience.")
 ;;;;; Methods for ggui-view functions for list
 
 ;; seq to view
-(cl-defmethod ggui-put-before ((seq sequence) (view ggui-view))
+(cl-defmethod ggui-put-before :after ((seq sequence) (view ggui-view))
   "Put every view in SEQ before VIEW, in normal order.
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5.
-This function is recursive.
-Return nil."
+This function is recursive."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (ggui-put-before (seq-elt seq 0) view)
-  (ggui-put-after (seq-subseq seq 1) (seq-elt seq 0))
-  nil)
+  (ggui-put-after (seq-subseq seq 1) (seq-elt seq 0)))
 
-(cl-defmethod ggui-put-after ((seq sequence) (view ggui-view))
+(cl-defmethod ggui-put-after :after ((seq sequence) (view ggui-view))
   "Put every view in SEQ after VIEW, in normal order.
 E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5.
-This function is recursive.
- Return nil."
+This function is recursive."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
   (let ((last-left view)
         (index 0)
@@ -823,40 +821,31 @@ This function is recursive.
       (setq this (seq-elt seq index))
       (cl-incf index)
       (ggui-put-after this last-left)
-      (setq last-left this)))
-  nil)
+      (setq last-left this))))
 
 ;; view to seq
-(cl-defmethod ggui-put-before ((view ggui-view) (seq sequence))
-  "Put VIEW before the first element of SEQ.
-Return nil."
+(cl-defmethod ggui-put-before :after ((view ggui-view) (seq sequence))
+  "Put VIEW before the first element of SEQ."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
-  (ggui-put-before view (seq-elt seq 0))
-  nil)
+  (ggui-put-before view (seq-elt seq 0)))
 
-(cl-defmethod ggui-put-after ((view ggui-view) (seq sequence))
-  "Put VIEW after the last element of SEQ.
-Return nil."
+(cl-defmethod ggui-put-after :after ((view ggui-view) (seq sequence))
+  "Put VIEW after the last element of SEQ."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
-  (ggui-put-after view (seq-elt seq (1- (seq-length seq))))
-  nil)
+  (ggui-put-after view (seq-elt seq (1- (seq-length seq)))))
 
 ;; seq to seq
-(cl-defmethod ggui-put-before ((seq1 sequence) (seq2 sequence))
-  "Put VIEW before the first element of SEQ.
-Return nil."
+(cl-defmethod ggui-put-before :after ((seq1 sequence) (seq2 sequence))
+  "Put VIEW before the first element of SEQ."
   (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
   (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
-  (ggui-put-before seq1 (seq-elt seq2 0))
-  nil)
+  (ggui-put-before seq1 (seq-elt seq2 0)))
 
-(cl-defmethod ggui-put-after ((seq1 sequence) (seq2 sequence))
-  "Put VIEW after the last element of SEQ.
-Return nil."
+(cl-defmethod ggui-put-after :after ((seq1 sequence) (seq2 sequence))
+  "Put VIEW after the last element of SEQ."
   (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
   (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
-  (ggui-put-after seq1 (seq-elt seq2 (1- (seq-length seq2))))
-  nil)
+  (ggui-put-after seq1 (seq-elt seq2 (1- (seq-length seq2)))))
 
 (cl-defmethod ggui--remove-display ((seq sequence))
   "Remove display of SEQ.
