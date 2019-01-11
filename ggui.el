@@ -725,11 +725,6 @@ If COMPARE-fn nil, use `eq', other options are `equal' and `eql'.")
   "Insert ELT into SEQ at Nth position. Destructive.
 Return SEQ for convenience.")
 
-(cl-defgeneric ggui-put-at (elt seq n)
-  "Put ELT into SEQ at Nth position. Destructive.
-If ELT is already in seq, it is removed first, note that
-N regards the SEQ after removing ELT.")
-
 
 ;;;;; Method implementation for list
 
@@ -1579,30 +1574,106 @@ nil if no suitable window can be found."
 
 ;;;;; Methods
 
-(cl-defmethod ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
+(cl-defgeneric ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
   "Put CHILD under PARENT at position n."
   (setf (ggui--parent child) parent)
   (ggui-insert-at child (ggui--children parent) n))
 
-(cl-defmethod ggui-put-under-end ((child ggui-node) (parent ggui-node))
+(cl-defgeneric ggui-put-under-end ((child ggui-node) (parent ggui-node))
   "Put CHILD under PARENT at the end of its children list."
   (ggui-put-under-at child parent (length (ggui--children parent))))
 
-(cl-defmethod ggui-put-under-begin ((child ggui-node) (parent ggui-node))
-  "Put CHILD under PARENT at the beginning of its childfren list."
+(cl-defgeneric ggui-put-under-begin ((child ggui-node) (parent ggui-node))
+  "Put CHILD under PARENT at the beginning of its children list."
   (ggui-put-under-at child parent 0))
 
-(cl-defmethod ggui-put-after ((node ggui-node) (node-after ggui-node))
+(cl-defgeneric ggui-put-after ((node ggui-node) (node-after ggui-node))
   "Put  NODE-AFTER after NODE under NODE's parent.
 If NODE-BEFORE doesn't have parent, error."
   (let* ((parent (ggui--parent node))
          (index-of-node (ggui--find-index node parent)))
     (ggui-put-under-at node-after parent (1+ index-of-node))))
 
-(cl-defmethod ggui-remove-from ((child ggui-node) (parent ggui-node))
+(cl-defgeneric ggui-put-before ((node ggui-node) (node-after ggui-node))
+  "Put  NODE-BEFORE before NODE under NODE's parent.
+If NODE-BEFORE doesn't have parent, error."
+  (let* ((parent (ggui--parent node))
+         (index-of-node (ggui--find-index node parent)))
+    (ggui-put-under-at node-after parent index-of-node)))
+
+(cl-defgeneric ggui-remove-from ((child ggui-node) (parent ggui-node))
   "Remove CHILD from PARENT."
   (setf (ggui--parent child) nil)
   (setf (ggui--children parent) (remove child (ggui--children parent))))
+
+;;;; indent-view
+
+(ggui-defclass ggui-indent-view (ggui-view)
+  ((indent-level
+    :initform 0
+    :type integer
+    :documentation "The level of indent.")
+   (raw-text
+    :initform ""
+    :type string
+    :documentation "Internal. In `ggui-indent-view',
+`text' slot become virtual, `raw-text' stores the actual text."))
+  "A view that carries indent information and displays with indent.")
+
+(cl-defmethod ggui--text ((view ggui-indent-view))
+  (concat (ggui--indent-view-indent view) (ggui--raw-text view)))
+
+(cl-defmethod (setf ggui--text) (text (view ggui-indent-view))
+  (setf (ggui--raw-text view) text))
+
+(cl-defgeneric ggui--view-indent ((view ggui-indent-view))
+  "Return the indent text for VIEW."
+  (make-string (* 2 (ggui--indent-level view)) ?\s))
+
+;;;; nodeview
+
+(ggui-defclass ggui-nodeview (ggui-indent-view)
+  ((node
+    :type ggui-viewnode
+    :documentation "The node that owns this view."))
+  "Used by `ggui-viewnode'.")
+
+(cl-defmethod ggui--last-child-p ((node ggui-node))
+  "Return t if NODE is the last child in its parent's children list."
+  (let ((seq (ggui--children (ggui--parent node))))
+    (eq node (seq-elt seq (length seq)))))
+
+(cl-defmethod ggui--view-indent ((view ggui-nodeview))
+  (concat (if (ggui--last-child-p (ggui--node view))
+              "└" "├")
+          (1- (* 2 (ggui--indent-level view)))))
+
+;;;; viewnode
+
+(ggui-defclass ggui-viewnode (ggui-node)
+  ((view
+    :type ggui-view))
+  "A node with a textual representation.")
+
+(cl-defmethod initialize-instance :after ((node ggui-viewnode) &rest _)
+  (setf (ggui--node (ggui--view node)) node))
+
+(defun ggui-viewnode-new (text children)
+  "Return a `ggui-viewnode'.
+It view's text is set to TEXT and children is set to CHILDREN."
+  (ggui-viewnode :text text :children children))
+
+(cl-defmethod ggui-put-under-at ((child ggui-node) (parent ggui-node) n)
+  "Put CHILD under PARENT at position n."
+  (ggui-insert-at (ggui--view child) (ggui--children parent) n)
+  (call-next-method child parent n))
+
+(cl-defmethod ggui-remove-from ((child ggui-node) (parent ggui-node))
+  "Remove CHILD from PARENT."
+  (ggui--remove-display child)
+  (call-next-method child parent))
+
+
 
 ;;;; Provide
 
