@@ -1463,10 +1463,12 @@ doesn't implement its specific pop up function (`ggui--pop-biggie').")
 (defun ggui-biggie-abort ()
   "Abort with current content."
   (interactive)
-  (ggui-biggie-update-mode -1)
-  (if ggui-biggie-abort-fn
-      (funcall ggui-biggie-abort-fn (buffer-string))
-    (ggui-log 'warn "No `ggui-biggie-abort-fn' specified.")))
+  (let ((ggui-biggie-window (selected-window)))
+    (ggui-biggie-update-mode -1)
+    (if ggui-biggie-abort-fn
+        (funcall ggui-biggie-abort-fn (buffer-string))
+      (ggui-log 'warn "No `ggui-biggie-abort-fn' specified."))
+    (delete-window ggui-biggie-window)))
 
 (defun ggui-biggie-update (_ _1 _2)
   "Update with current content."
