@@ -1558,9 +1558,12 @@ If NODE-BEFORE doesn't have parent, error."
   (setf (ggui--children parent) (remove child (ggui--children parent))))
 
 (cl-defmethod ggui--last-child-p ((node ggui-node))
-  "Return t if NODE is the last child in its parent's children list."
-  (let ((seq (ggui--children (ggui--parent node))))
-    (eq node (seq-elt seq (length seq)))))
+  "Return t if NODE is the last child in its parent's children list.
+If NODE doesn't have parent, return t.
+Return nil otherwise."
+  (when-let ((parent (ggui--parent node)))
+    (let ((seq (ggui--children parent)))
+      (eq node (seq-elt seq (1- (length seq)))))))
 
 ;;;; indent-view
 
@@ -1577,7 +1580,7 @@ If NODE-BEFORE doesn't have parent, error."
   "A view that carries indent information and displays with indent.")
 
 (cl-defmethod ggui--text ((view ggui-indent-view))
-  (concat (ggui--indent-view-indent view) (ggui--raw-text view)))
+  (concat (ggui--view-indent view) (ggui--raw-text view)))
 
 (cl-defmethod (setf ggui--text) (text (view ggui-indent-view))
   (setf (ggui--raw-text view) text))
@@ -1595,18 +1598,62 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
 ;;;;; Method of indent-view
 
-(cl-defmethod ggui--view-indent ((view ggui-node-view))
-  (concat (if (ggui--last-child-p (ggui--node view))
-              "└" "├")
-          (1- (* 2 (ggui--indent-level view)))))
+(cl-defmethod ggui--indent-prefix-for-children ((node ggui-node-view))
+  "Return the indent prefix of the NODE."
+  (if-let ((parent (ggui--parent node)))
+      (concat (ggui--indent-prefix-for-children parent)
+              (if (ggui--last-child-p node)
+                  "    "
+                "│   "))
+    ""))
 
-;;;;; Side effect of node
-(cl-defmethod ggui-put-under-at :before ((child ggui-node-view) (parent ggui-node-view) n)
+(cl-defmethod ggui--view-indent ((node ggui-node-view))
+  (if (eq 0 (ggui--indent-level node)) ; no parent
+      ""
+    (concat (ggui--indent-prefix-for-children (ggui--parent node))
+            (if (ggui--last-child-p node)
+                "└" "├")
+            "───")))
+
+;;;;; Side effect of node and indent-view and view
+
+(cl-defmethod ggui-put-under-at :after ((child ggui-node-view) (parent ggui-node-view) n)
   "Put CHILD under PARENT at position n."
-  (let ((sister (nth n (ggui--children parent))))
-    (unless (cl-typep child 'ggui-node-view)
-      (signal 'invalid-slot-type (list "`ggui-node-view''s child have to be all `ggui-node-view's, this one is not:" child)))
-    (ggui-put-before child sister)))
+  ;; this doesn't modify the children list,
+  ;; but the side does execute, which is what we want
+  (ggui-insert-at child (ggui--children parent) n)
+  ;; change indent level
+  (ggui--sync-indent child))
+
+(cl-defmethod ggui-put-after :after ((node ggui-node-view) (_ ggui-view))
+  ;; if you put A after B, A's children should follow A
+  (when-let ((children (ggui--children node)))
+    (ggui-put-after children node)))
+
+(cl-defmethod ggui-put-before :after ((node ggui-node-view) (_ ggui-view))
+  ;; if you put A after B, A's children should follow A
+  (when-let ((children (ggui--children node)))
+    (ggui-put-after children node)))
+
+(cl-defmethod initialize-instance :after ((node ggui-node-view) &rest _)
+  (ggui--sync-indent node))
+
+(cl-defmethod ggui--sync-indent ((node ggui-node) &optional parent-level)
+  "Sync the `indent-level' of node with its parent and children.
+PARENT-LEVEL is used internally."
+  ;; if parent-level is specified, save the effort to retrieve level from
+  ;; parent. Pass children my level to save them the effort
+  (setf (ggui--indent-level node)
+        (if (ggui--parent node)
+            (1+ (or parent-level (ggui--indent-level (ggui--parent node))))
+          0))
+  (when-let ((children (ggui--children node)))
+    (dolist (child children)
+      (ggui--sync-indent child (ggui--indent-level node)))))
+
+(cl-defmethod ggui-remove-from :after ((child ggui-node-view) (_ ggui-node-view))
+  "Set indent-level of CHILD to 0 when removed."
+  (setf (ggui--indent-level child) 0))
 
 ;;;; Provide
 
