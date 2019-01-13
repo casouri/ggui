@@ -730,7 +730,8 @@ This function is not destructive.")
   "Check"
   (when (or (< (seq-length seq) n)
             (< n 0))
-    (signal 'args-out-of-range nil)))
+    (signal 'args-out-of-range nil))
+  (unless seq (signal 'invalid-arguments (list "SEQ is nil"))))
 
 (cl-defmethod ggui-insert-at (elt (seq list) n)
   (seq-concatenate 'list (seq-subseq seq 0 n)
