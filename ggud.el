@@ -64,6 +64,12 @@ nil
              nil)
     (end-of-buffer (signal 'ggui-pos-out-of-range (list "LINE:" line "COLUMN:" column)))))
 
+(defun ggud--translate-pos (line column buffer)
+  "Translate LINE:COLUMN in BUFFER to POS in BUFFER.
+Return (POS BUFFER)."
+  (cons (progn (ggui-goto line column buffer) (point))
+        buffer))
+
 (provide 'ggud)
 
 ;;; ggud.el ends here

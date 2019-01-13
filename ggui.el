@@ -307,12 +307,6 @@ for overlay properties to add to the result."
   ;; if the overlay is in tmp buffer, it is not presented.
   (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
 
-(defun ggui--translate-pos (line column buffer)
-  "Translate LINE:COLUMN in BUFFER to POS in BUFFER.
-Return (POS BUFFER)."
-  (cons (progn (ggui-goto line column buffer) (point))
-        buffer))
-
 (defun ggui--make-overlay (beg end &optional buffer &rest property-list)
   "Return an overlay from BEG to END in BUFFER.
 
