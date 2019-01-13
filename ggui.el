@@ -435,29 +435,41 @@ Return new text of VIEW."
 Should: one and only one before point, one and only one after point."
   (let ((point (point)))
     (cond ((not (plist-get (text-properties-at (1- point)) 'ggui-delimiter))
-           (signal 'ggui-delimiter-misplace (list "Left delimiter is missing, point at" point "delimiter should be at" (1- point))))
+           (signal 'ggui-delimiter-misplace
+                   (list (format "Left delimiter is missing, point at %d, delimiter should be at %d" point (1- point)))))
+
           ((plist-get (text-properties-at (- point 2)) 'ggui-delimiter)
-           (signal 'ggui-delimiter-misplace (list "Extra delimiter left to left delimiter, point at" point "extra delimiter point at" (- point 2))))
+           (signal 'ggui-delimiter-misplace
+                   (list (format "Extra delimiter left to left delimiter, point at %d, extra delimiter point at %d." point (- point 2)))))
+
           ((not (plist-get (text-properties-at point) 'ggui-delimiter))
-           (signal 'ggui-delimiter-misplace (list "Right delimiter is missing, point at" point "delimiter should be at" point)))
+           (signal 'ggui-delimiter-misplace
+                   (list (format "Right delimiter is missing, point at %d, delimiter should be at %d." point point))))
+
           ((plist-get (text-properties-at (1+ point)) 'ggui-delimiter)
-           (signal 'ggui-delimiter-misplace (list "Extra delimiter right to right delimiter, point at" point "extra delimiter point at" (1+ point)))))))
+           (signal 'ggui-delimiter-misplace
+                   (list (format "Extra delimiter right to right delimiter, point at %d, extra delimiter point at %d." point (1+ point))))))))
 
 ;;;;;; Check
+
+;; simple to please compiler
+;; real definition below in "managed buffer" section
+(defvar ggui--top-view)
+(defvar ggui--bottom-view)
 
 (cl-defmethod ggui-put-before :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--top-view view)
-    (signal 'ggui-prohibit-edit (list "Nothing can be put before a `ggui--top-view', you try to put:" stuff)))
+    (signal 'ggui-prohibit-edit (list (format "Nothing can be put before a `ggui--top-view', you try to put: %s." stuff))))
   (unless (ggui--presentp view)
-    (signal 'ggui-view-not-present (list "VIEW is not present yet, you can't put STUFF before it."))))
+    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it.")))))
 
 (cl-defmethod ggui-put-after :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--bottom-view view)
-    (signal 'ggui-prohibit-edit (list "Nothing can be put after a `ggui--bottom-view', you try to put:" stuff)))
+    (signal 'ggui-prohibit-edit (list (format "Nothing can be put after a `ggui--bottom-view', you try to put: %s." stuff))))
   (unless (ggui--presentp view)
-    (signal 'ggui-view-not-present (list "VIEW is not present yet, you can't put STUFF before it."))))
+    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it.")))))
 
 ;;;;;; String (probably shouldn't add string to views)
 
