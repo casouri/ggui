@@ -417,17 +417,17 @@ Return A.")
   "Insert A after B.
 Return A.")
 
-(cl-defgeneric ggui-insert-before (str view)
+(defmacro ggui-insert-before (str view)
   "Insert STR before VIEW. VIEW cover STR.
 Return new text of VIEW."
-  (setf (ggui--text view)
-        (concat str (ggui--text view))))
+  `(setf (ggui--text ,view)
+         (concat ,str (ggui--text ,view))))
 
-(cl-defgeneric ggui-insert-after (str view)
+(defmacro ggui-insert-after (str view)
   "Insert STR after VIEW. VIEW doesn't cover STR.
 Return new text of VIEW."
-  (setf (ggui--text view)
-        (concat (ggui--text view) str)))
+  `(setf (ggui--text ,view)
+         (concat (ggui--text ,view) ,str)))
 
 
 (defun ggui--check-delimiter ()
@@ -458,20 +458,6 @@ Should: one and only one before point, one and only one after point."
     (signal 'ggui-prohibit-edit (list "Nothing can be put after a `ggui--bottom-view', you try to put:" stuff)))
   (unless (ggui--presentp view)
     (signal 'ggui-view-not-present (list "VIEW is not present yet, you can't put STUFF before it."))))
-
-(cl-defmethod ggui-insert-before :before (stuff (view ggui-view))
-  "Check for misuse."
-  (when (eq ggui--top-view view)
-    (signal 'ggui-prohibit-edit (list "Nothing can be inserted before a `ggui--top-view', you try to insert:" stuff)))
-  (when (eq ggui--bottom-view view)
-    (signal 'ggui-prohibit-edit (list "Nothing can be inserted before a `ggui--bottom-view', you try to insert:" stuff))))
-
-(cl-defmethod ggui-insert-after :before (stuff (view ggui-view))
-  "Check for misuse."
-  (when (eq ggui--top-view view)
-    (signal 'ggui-prohibit-edit (list "Nothing can be inserted after a `ggui--top-view', you try to insert:" stuff)))
-  (when (eq ggui--bottom-view view)
-    (signal 'ggui-prohibit-edit (list "Nothing can be inserted after a `ggui--bottom-view', you try to insert:" stuff))))
 
 ;;;;;; String (probably shouldn't add string to views)
 
