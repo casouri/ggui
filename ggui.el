@@ -331,12 +331,16 @@ for overlay properties to add to the result."
 ;;;;; Beg & end & buffer
 
 (cl-defmethod ggui--beg-mark ((view ggui-view))
-  "Return the beginning of VIEW as a marker."
+  "Return the beginning of VIEW as a marker.
+Don't forget to delete the marker after using them!
+They are very expensive."
   (let ((overlay (ggui--overlay view)))
     (set-marker (make-marker) (overlay-start overlay) (overlay-buffer overlay))))
 
 (cl-defmethod ggui--end-mark ((view ggui-view))
-  "Return the end of VIEW as a marker."
+  "Return the end of VIEW as a marker.
+Don't forget to delete the marker after using them!
+They are very expensive."
   (let ((overlay (ggui--overlay view)))
     (set-marker (make-marker) (overlay-end overlay) (overlay-buffer overlay))))
 
