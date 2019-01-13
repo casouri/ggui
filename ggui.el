@@ -527,7 +527,7 @@ Should: one and only one before point, one and only one after point."
    (ggui--move-overlay aview (point) (point))
    (insert (ggui--text aview))))
 
-;;;;;;; Remove before insert
+;;;;;; Remove before insert
 
 (cl-defmethod ggui-put-before :before ((aview ggui-view) _)
   "Remove AVIEW's display before adding it."
