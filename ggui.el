@@ -224,16 +224,19 @@ TODO Truly support CJK, instead of just han."
 ;;;; Global hook
 
 (defvar ggui--after-buffer-change-hook ()
-  "This hook runs after buffer changes.")
+  "This hook runs after buffer changes.
+Each function in the hook is called with last-buffer and this-buffer.")
 
 (defvar ggui--last-buffer nil
   "Used by `ggui--after-buffer-change-hook'.")
 
 (defun ggui--maybe-run-after-buffer-change-hook ()
   "As the name suggest."
-  (unless (eq ggui--last-buffer (current-buffer))
-    (run-hook-with-args 'ggui--after-buffer-change-hook)
-    (setq ggui--last-buffer (current-buffer))))
+  (let ((current-buffer (current-buffer)))
+    (unless (eq ggui--last-buffer current-buffer)
+      (run-hook-with-args 'ggui--after-buffer-change-hook
+                          ggui--last-buffer current-buffer)
+      (setq ggui--last-buffer current-buffer))))
 
 (add-hook 'post-command-hook #'ggui--maybe-run-after-buffer-change-hook)
 
@@ -1078,7 +1081,7 @@ Don't set this to nil.")
 ;; And if you display that hint butter, no info will be there
 ;; properly handle that when redisplaying hint window
 
-(defun ggui--hint-recover-default-hint ()
+(defun ggui--hint-recover-default-hint (_1 _2)
   "Recover the default hint for the current buffer."
   ;; run when:
   ;; buffer changes
