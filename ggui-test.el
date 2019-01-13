@@ -160,6 +160,41 @@ It also wraps everything in `save-excursion' for convenience."
     (ggui-put-under-after coo c1)
     (should (equal (ggui--children p1) (list co c1 coo c2)))))
 
+;;;; node-view
+
+(ert-deftest ggui-node ()
+  (ggui-test-with-buffer (buf)
+    (let* ((n1 (ggui-node-view :raw-text "100\n"))
+           (n21 (ggui-node-view :raw-text "210\n"))
+           (n22 (ggui-node-view :raw-text "220\n"))
+           (n2 (ggui-node-view :raw-text "200\n" :children (list n21 n22)))
+           (n3 (ggui-node-view :raw-text "300\n"))
+           (ntop (ggui-node-view :raw-text "--------------------\n" :children (list n1 n2 n3))))
+      (ggui--setup-buffer buf)
+      (with-current-buffer buf
+        (ggui-put-after ntop ggui--top-view)
+        (should (equal (buffer-string) "T
+
+--------------------
+
+
+├───100
+
+
+├───200
+
+
+│   ├───210
+
+
+│   └───220
+
+
+└───300
+
+
+B"))))))
+
 ;;;; test app
 
 (ggui-defclass my-simple-app (ggui-app) ((name :initform "my simple app")))
