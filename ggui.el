@@ -564,12 +564,12 @@ Should: one and only one before point, one and only one after point."
 
 (defvar-local ggui--setup nil
   "Whether current buffer is setup.")
-(defvar-local ggui--top-view nil
+(defvar-local ggui-top-view nil
   "The top most (invisible) view of buffer.")
-(defvar-local ggui--bottom-view nil
+(defvar-local ggui-bottom-view nil
   "The bottom most (invisible) view of buffer.")
-(defconst ggui--top-text "T" "(Invisible) text of `ggui--top-view'.")
-(defconst ggui--bottom-text "B" "(Invisible) text of `ggui--bottom-view'.")
+(defconst ggui--top-text "T" "(Invisible) text of `ggui-top-view'.")
+(defconst ggui--bottom-text "B" "(Invisible) text of `ggui-bottom-view'.")
 (defconst ggui-point-min 3
   "The point min of a ggui-view managed buffer.
 
@@ -595,16 +595,16 @@ However, if FORCE is t, set it up it anyway."
         ;; we manually insert view text and setup overlay
         (ggui--edit
          (erase-buffer)
-         (setq-local ggui--top-view (ggui-view-new ggui--top-text 'invisible t))
-         (setq-local ggui--bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
+         (setq-local ggui-top-view (ggui-view-new ggui--top-text 'invisible t))
+         (setq-local ggui-bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
          ;; insert T\n\nB
          (goto-char 1)
-         (insert (ggui--text ggui--top-view))
+         (insert (ggui--text ggui-top-view))
          (ggui--insert-2delimiter)
-         (insert (ggui--text ggui--bottom-view))
+         (insert (ggui--text ggui-bottom-view))
          ;; put overlay
-         (ggui--move-overlay ggui--top-view 1 2)
-         (ggui--move-overlay ggui--bottom-view 4 5)
+         (ggui--move-overlay ggui-top-view 1 2)
+         (ggui--move-overlay ggui-bottom-view 4 5)
          (setq ggui--setup t)
          (read-only-mode)))))
   (get-buffer buffer))
@@ -1039,9 +1039,9 @@ No assumptions about the position of the point.")
     (with-current-buffer buffer
       (setq mode-line-format ggui-hint-buffer-mode-line-format)
       (ggui-put-after (setq ggui--hint-doc (ggui-view-new " "))
-                      ggui--top-view)
+                      ggui-top-view)
       (ggui-put-before (setq ggui--hint-binding (ggui-view-new " "))
-                       ggui--bottom-view))
+                       ggui-bottom-view))
     buffer))
 
 ;;;;; Default hint

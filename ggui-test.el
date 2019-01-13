@@ -80,7 +80,7 @@ It also wraps everything in `save-excursion' for convenience."
         (should (eq 'good (plist-get (overlay-properties (ggui--overlay view1)) 'woomy)))
         (should (eq 'nice (plist-get (overlay-properties (ggui--overlay view1)) 'veemo)))
         ;; put
-        (ggui-put-after view1 ggui--top-view)
+        (ggui-put-after view1 ggui-top-view)
         (should (equal "T\n\nhi\n\nB" (buffer-string)))
         (ggui-put-before view2 ggui--bottom-view)
         (should (equal "T\n\nhi\n\nyo\n\nB" (buffer-string)))
@@ -91,7 +91,7 @@ It also wraps everything in `save-excursion' for convenience."
         (setf (ggui--text view2) "yooooo")
         (should (equal "T\n\nyooooo\n\nB" (buffer-string)))
         ;; error
-        (should-error (ggui-put-before "!" ggui--top-view))
+        (should-error (ggui-put-before "!" ggui-top-view))
         (should-error (ggui-put-after "!" ggui--bottom-view))))))
 
 (ert-deftest ggui-seq ()
@@ -107,7 +107,7 @@ It also wraps everything in `save-excursion' for convenience."
         ;; setup
         (ggui--setup-buffer buf1)
         ;; put after
-        (ggui-put-after seq ggui--top-view)
+        (ggui-put-after seq ggui-top-view)
         (should (equal "T\n\nwoomy\n\nveemo\n\nfresh\n\nB" (buffer-string)))
         ;; put at 3rd place
         (ggui-insert-at-n view99 seq 2)
@@ -172,7 +172,7 @@ It also wraps everything in `save-excursion' for convenience."
            (ntop (ggui-node-view :raw-text "--------------------\n" :children (list n1 n2 n3))))
       (ggui--setup-buffer buf)
       (with-current-buffer buf
-        (ggui-put-after ntop ggui--top-view)
+        (ggui-put-after ntop ggui-top-view)
         (should (equal (buffer-string) "T
 
 --------------------
