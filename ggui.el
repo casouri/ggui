@@ -419,11 +419,15 @@ Return A.")
 
 (cl-defgeneric ggui-insert-before (str view)
   "Insert STR before VIEW. VIEW cover STR.
-Return STR.")
+Return new text of VIEW."
+  (setf (ggui--text view)
+        (concat str (ggui--text view))))
 
 (cl-defgeneric ggui-insert-after (str view)
-  "Insert STnR after VIEW. VIEW doesn't cover STR.
-Return STR.")
+  "Insert STR after VIEW. VIEW doesn't cover STR.
+Return new text of VIEW."
+  (setf (ggui--text view)
+        (concat (ggui--text view) str)))
 
 
 (defun ggui--check-delimiter ()
