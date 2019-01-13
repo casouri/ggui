@@ -611,6 +611,23 @@ Error: `ggui-buffer-mising'."
          (read-only-mode)))))
   (get-buffer buffer))
 
+(defun ggui-get-managed-buffer-or-create (buffer)
+  "Returns a ggui-view managed buffer.
+BUFFER can be a buffer or a string.
+If BUFFER is a buffer, set it up as a managed buffer.
+If BUFFER is a name and already has a buffer associates with it,
+set it up as a managed buffer."
+  (let ((buf (get-buffer-create buffer)))
+    (ggui--setup-buffer buf)
+    buf))
+
+(defun ggui-generate-managed-buffer (name)
+  "Return a new ggui-view managed buffer with name NAME.
+NAME might be modified if some other buffer with the same name exists."
+  (let ((buf (generate-new-buffer name)))
+    (ggui--setup-buffer buf)
+    buf))
+
 ;;;;; ggui-object-at-point
 
 (defun ggui-object-at-point ()
