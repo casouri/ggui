@@ -417,15 +417,13 @@ Return A.")
   "Insert A after B.
 Return A.")
 
-(cl-defmethod ggui-insert-before (str view)
+(cl-defgeneric ggui-insert-before (str view)
   "Insert STR before VIEW. VIEW cover STR.
-Return STR."
-  str)
+Return STR.")
 
-(cl-defmethod ggui-insert-after (str view)
+(cl-defgeneric ggui-insert-after (str view)
   "Insert STnR after VIEW. VIEW doesn't cover STR.
-Return STR."
-  str)
+Return STR.")
 
 
 (defun ggui--check-delimiter ()
