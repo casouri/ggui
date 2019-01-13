@@ -143,13 +143,14 @@ Return nil when no window is found."
 Compare with COMPARE-FN, if it's nil, use `eq'.
 
 Return nil if no match is found."
-  (catch 'found
-    (let ((idx 0))
-      (seq-doseq (elm lst)
-        (when (funcall (or compare-fn #'eq) elt elm)
-          (throw 'found idx))
-        (cl-incf idx))
-      nil)))
+  (if lst (catch 'found
+            (let ((idx 0))
+              (seq-doseq (elm lst)
+                (when (funcall (or compare-fn #'eq) elt elm)
+                  (throw 'found idx))
+                (cl-incf idx))
+              nil))
+    (signal 'invalid-arguments "LST is nil")))
 
 ;;;;; CJK length
 
@@ -245,6 +246,7 @@ TODO Truly support CJK, instead of just han."
 (define-error 'ggui-delimiter-misplace "A ggui delimiter should/should not be here." '(error))
 (define-error 'ggui-prohibit-edit "This edition is not allowed" '(error))
 (define-error 'ggui-view-not-present "This view is not on any buffer." '(error))
+(define-error 'ggui-element-missing "The element is assumed to be in a list, but it is not" '(error))
 
 ;;;; Etc
 
@@ -1558,14 +1560,22 @@ nil if no suitable window can be found."
 If NODE-BEFORE doesn't have parent, error."
   (let* ((parent (ggui--parent node))
          (index-of-node (ggui--find-index node (ggui--children parent))))
-    (ggui-put-under-at node-after parent (1+ index-of-node))))
+    (if index-of-node
+        (ggui-put-under-at node-after parent (1+ index-of-node))
+      (signal 'ggui-element-missing (list (format "You try to put NODE-AFTER %s after NODE %s,
+but somehow NODE is not in its parent's `children' list, parent is %s."
+                                                  node-after node parent))))))
 
 (cl-defgeneric ggui-put-under-before ((node-before ggui-node) (node ggui-node))
   "Put  NODE-BEFORE before NODE under NODE's parent.
 If NODE-BEFORE doesn't have parent, error."
   (let* ((parent (ggui--parent node))
          (index-of-node (ggui--find-index node parent)))
-    (ggui-put-under-at node-before parent index-of-node)))
+    (if index-of-node
+        (ggui-put-under-at node-before parent index-of-node)
+      (signal 'ggui-element-missing (list (format "You try to put NODE-BEFORE %s before NODE %s,
+but somehow NODE is not in its parent's `children' list, parent is %s."
+                                                  node-before node parent))))))
 
 (cl-defgeneric ggui-remove-from ((child ggui-node) (parent ggui-node))
   "Remove CHILD from PARENT."
