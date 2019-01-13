@@ -132,9 +132,11 @@ If STR is shorter than LEN, spaces are padded on the SIDE."
       (concat str (make-string (- len real-len) ?\s)))))
 
 (defun ggui--buffer-window (buffer &optional frame)
-  "Return the first window in FRAME found that displays BUFFER.
-current frame is used when FRAME is nil."
-  (seq-find (lambda (wind) (eq (window-buffer) buffer)) (window-list frame nil)))
+  "Return the first window found in FRAME that displays BUFFER.
+current frame is used when FRAME is nil.
+
+Return nil when no window is found."
+  (seq-find (lambda (wind) (eq (window-buffer wind) buffer)) (window-list frame nil)))
 
 (defun ggui--find-index (elt lst &optional compare-fn)
   "Find ELT's position in LST and return it.
@@ -1068,6 +1070,10 @@ No assumptions about the position of the point.")
 (defvar-local ggui--default-hint '("" "")
   "Default hint of the buffer. It is a list like '(doc bindign).
 Don't set this to nil.")
+;; TODO if the hint window is not present when `use-map' is called,
+;; default-hint will not be properly set.
+;; And if you display that hint butter, no info will be there
+;; properly handle that when redisplaying hint window
 
 (defun ggui--hint-recover-default-hint ()
   "Recover the default hint for the current buffer."
@@ -1137,13 +1143,8 @@ This map only activates for one command."
   "Activate `ggui-map' GMAP in the current buffer and display hint.
 
 Unlike `ggui-use-map', MAP is persistent."
-  (setq ggui--default-hint (list (ggui-map-doc gmap)
-                                 (ggui--map-to-hint
-                                  (ggui-map-map gmap)
-                                  (ggui--buffer-window
-                                   (ggui--hint-buffer (ggui-this-app))))))
   (use-local-map (ggui-map-map gmap))
-  (ggui--display-map-hint gmap))
+  (setq ggui--default-hint (ggui--display-map-hint gmap)))
 
 (defun ggui-define-map (doc &rest binding-list)
   "Return a `ggui-map' with BINDING-LIST and DOC.
@@ -1204,10 +1205,14 @@ HELP is the optional help tooltip."
 ;;;;; Backstage
 
 (defun ggui--display-map-hint (gmap)
-  "Display `ggui-map' GMAP's documentation and bindings in hint buffer."
-  (setf (ggui--hint-doc (ggui-this-app)) (ggui-map-doc gmap))
-  (setf (ggui--hint-binding (ggui-this-app))
-        (ggui--map-to-hint (ggui-map-map gmap) (ggui--buffer-window (ggui--hint-buffer (ggui-this-app))))))
+  "Display `ggui-map' GMAP's documentation and bindings in hint buffer.
+Return list (doc hint)."
+  (list (setf (ggui--hint-doc (ggui-this-app)) (ggui-map-doc gmap))
+        (setf (ggui--hint-binding (ggui-this-app))
+              (if-let ((window (ggui--buffer-window (ggui--hint-buffer (ggui-this-app)))))
+                  (ggui--map-to-hint (ggui-map-map gmap) window)
+                (ggui-log 'info "Try to display hint but hint buffer is not on screen.")
+                ""))))
 
 (defun ggui--hint-len (hint)
   "Return the length of HINT.
