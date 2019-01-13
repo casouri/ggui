@@ -631,7 +631,8 @@ NAME might be modified if some other buffer with the same name exists."
 ;;;;; ggui-object-at-point
 
 (defun ggui-object-at-point ()
-  "Return the ggui object at point."
+  "Return the ggui object at point.
+Return nil if none found."
   (interactive)
   (catch 'found
     (if ggui--setup
