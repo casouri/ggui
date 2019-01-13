@@ -152,6 +152,10 @@ Return nil if no match is found."
               nil))
     (signal 'invalid-arguments (list "LST is nil"))))
 
+(defmacro ggui-seq-last (seq)
+  "The last element of SEQ."
+  `(seq-elt ,seq (1- (seq-length ,seq))))
+
 ;;;;; CJK length
 
 (defun ggui--hanp (char)
