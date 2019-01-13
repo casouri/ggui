@@ -498,16 +498,6 @@ Should: one and only one before point, one and only one after point."
    (forward-char)
    (insert str)))
 
-(cl-defmethod ggui-insert-before ((str string) (view ggui-view))
-  (ggui--edit
-   (goto-char (ggui--beg view))
-   (insert str)))
-
-(cl-defmethod ggui-insert-after ((str string) (view ggui-view))
-  (ggui--edit
-   (goto-char (ggui--end view))
-   (insert str)))
-
 ;;;;;; View
 
 (cl-defmethod ggui-put-before ((aview ggui-view) (view ggui-view))
@@ -807,7 +797,7 @@ E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
 (cl-defmethod ggui-put-after ((view ggui-view) (seq sequence))
   "Put VIEW after the last element of SEQ."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
-  (ggui-put-after view (seq-elt seq (1- (seq-length seq))))
+  (ggui-put-after view (seq-elt seq (ggui-seq-last seq)))
   view)
 
 ;;;;;;; seq to seq
