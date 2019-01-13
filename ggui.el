@@ -1664,7 +1664,7 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
     (if (and (not (eq (ggui--parent node) node-b))
              children)
         (ggui-put-after node children)
-      (call-next-method node node-b))))
+      (cl-call-next-method node node-b))))
 
 (cl-defmethod ggui-put-after :after ((node ggui-node-view) _)
   ;; if you put A after B, A's children should follow A
