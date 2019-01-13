@@ -440,15 +440,15 @@ Should: one and only one before point, one and only one after point."
 
           ((plist-get (text-properties-at (- point 2)) 'ggui-delimiter)
            (signal 'ggui-delimiter-misplace
-                   (list (format "Extra delimiter left to left delimiter, point at %d, extra delimiter point at %d." point (- point 2)))))
+                   (list (format "Extra delimiter left to left delimiter, point at %d, extra delimiter point at %d" point (- point 2)))))
 
           ((not (plist-get (text-properties-at point) 'ggui-delimiter))
            (signal 'ggui-delimiter-misplace
-                   (list (format "Right delimiter is missing, point at %d, delimiter should be at %d." point point))))
+                   (list (format "Right delimiter is missing, point at %d, delimiter should be at %d" point point))))
 
           ((plist-get (text-properties-at (1+ point)) 'ggui-delimiter)
            (signal 'ggui-delimiter-misplace
-                   (list (format "Extra delimiter right to right delimiter, point at %d, extra delimiter point at %d." point (1+ point))))))))
+                   (list (format "Extra delimiter right to right delimiter, point at %d, extra delimiter point at %d" point (1+ point))))))))
 
 ;;;;;; Check
 
@@ -460,16 +460,16 @@ Should: one and only one before point, one and only one after point."
 (cl-defmethod ggui-put-before :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--top-view view)
-    (signal 'ggui-prohibit-edit (list (format "Nothing can be put before a `ggui--top-view', you try to put: %s." stuff))))
+    (signal 'ggui-prohibit-edit (list (format "Nothing can be put before a `ggui--top-view', you try to put: %s" stuff))))
   (unless (ggui--presentp view)
-    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it.")))))
+    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it")))))
 
 (cl-defmethod ggui-put-after :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui--bottom-view view)
-    (signal 'ggui-prohibit-edit (list (format "Nothing can be put after a `ggui--bottom-view', you try to put: %s." stuff))))
+    (signal 'ggui-prohibit-edit (list (format "Nothing can be put after a `ggui--bottom-view', you try to put: %s" stuff))))
   (unless (ggui--presentp view)
-    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it.")))))
+    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it")))))
 
 ;;;;;; String (probably shouldn't add string to views)
 ;;
@@ -1557,7 +1557,7 @@ If NODE-BEFORE doesn't have parent, error."
     (if index-of-node
         (ggui-put-under-at node-after parent (1+ index-of-node))
       (signal 'ggui-element-missing (list (format "You try to put NODE-AFTER %s after NODE %s,
-but somehow NODE is not in its parent's `children' list, parent is %s."
+but somehow NODE is not in its parent's `children' list, parent is %s"
                                                   node-after node parent))))))
 
 (cl-defgeneric ggui-put-under-before ((node-before ggui-node) (node ggui-node))
@@ -1568,7 +1568,7 @@ If NODE-BEFORE doesn't have parent, error."
     (if index-of-node
         (ggui-put-under-at node-before parent index-of-node)
       (signal 'ggui-element-missing (list (format "You try to put NODE-BEFORE %s before NODE %s,
-but somehow NODE is not in its parent's `children' list, parent is %s."
+but somehow NODE is not in its parent's `children' list, parent is %s"
                                                   node-before node parent))))))
 
 (cl-defgeneric ggui-remove-from ((child ggui-node) (parent ggui-node))
