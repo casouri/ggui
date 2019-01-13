@@ -472,6 +472,10 @@ Should: one and only one before point, one and only one after point."
     (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it.")))))
 
 ;;;;;; String (probably shouldn't add string to views)
+;;
+;; Once you put something into a ggui-view managed buffer
+;; it's a horse without reins
+;; there is no easy way to find, replace or edit it
 
 (cl-defmethod ggui-put-before ((str string) (view ggui-view))
   (ggui--edit
