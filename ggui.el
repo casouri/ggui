@@ -638,8 +638,7 @@ Return nil if none found."
     (if ggui--setup
         (dolist (ov (overlays-at (point)))
           (when-let ((obj (plist-get (overlay-properties ov) 'ggui-view)))
-            (throw 'found obj)))
-      (message "No ggui related object at point"))))
+            (throw 'found obj))))))
 
 ;;;; Toggleable
 
