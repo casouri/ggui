@@ -537,7 +537,6 @@ Should: one and only one before point, one and only one after point."
   "Remove AVIEW's display before adding it."
   (when (ggui--presentp aview) (ggui--remove-display aview)))
 
-
 ;;;;; Remove
 (cl-defmethod ggui--remove-display ((view ggui-view))
   "Remove VIEW's presence from buffer."
