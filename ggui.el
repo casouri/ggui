@@ -644,16 +644,13 @@ Return nil if none found."
 ;;;; Toggleable
 
 (cl-defgeneric ggui-toggle-forward (_)
-  "Toggle the object's state forward."
-  (signal 'cl-no-applicable-method))
+  "Toggle the object's state forward.")
 
 (cl-defgeneric ggui-toggle-backward (_)
-  "Toggle the object's state backward."
-  (signal 'cl-no-applicable-method))
+  "Toggle the object's state backward.")
 
 (cl-defgeneric ggui-toggle-to (_ state-index)
-  "Toggle to the STATE-INDEX th state of the toggleable."
-  (signal 'cl-no-applicable-method (list "STATE-INDEX is" state-index)))
+  "Toggle to the STATE-INDEX th state of the toggleable.")
 
 (defun ggui-toggle-at-point (n)
   "Toggle the stuff at point (if it relates to a ggui object).
