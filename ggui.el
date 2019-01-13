@@ -571,19 +571,26 @@ Should: one and only one before point, one and only one after point."
 (defconst ggui--top-text "T" "(Invisible) text of `ggui--top-view'.")
 (defconst ggui--bottom-text "B" "(Invisible) text of `ggui--bottom-view'.")
 (defconst ggui-point-min 3
-  "Point 1 is `ggui--top-text', point 2 is a delimiter, point 3 is another delimiter,
+  "The point min of a ggui-view managed buffer.
+
+Point 1 is `ggui--top-text',
+point 2 is a delimiter,
+point 3 is another delimiter,
 point 4 is the first (user defined) view.")
 
-(defun ggui--setup-buffer (buffer)
+(defun ggui--setup-buffer (buffer &optional force)
   "Setup BUFFER and return it. BUFFER can be either a string or a buffer.
-If buffer already exists, it is erased."
+If buffer already exists, it is erased.
+
+If the buffer is already setup, do nothing.
+However, if FORCE is t, set it up it anyway."
   (let ((buffer (cond ((bufferp buffer) buffer)
                       ((stringp buffer) (get-buffer-create buffer))
                       (t (signal 'invalid-argument (list "BUFFER is not a buffer nor a string" buffer))))))
     (unless (buffer-live-p buffer) (signal 'ggui-buffer-missing (list "BUFFER is not a live buffer" buffer)))
     ;; setup
     (with-current-buffer buffer
-      (if ggui--setup
+      (if (and ggui--setup (not force))
           (ggui-log :warn "Buffer %S already set up but someone try to set up again." buffer)
         ;; we manually insert view text and setup overlay
         (ggui--edit
