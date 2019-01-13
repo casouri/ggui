@@ -178,7 +178,8 @@ This function doesn't respect 'display or 'invisible text property."
   "Return the substring of STR from FROM to TO.
 
 Similar to `ggui--visual-length', CJK chars are counted as two unit.
-If TO or FROM is in the middle of a CJK char, throw away the char and append a space.
+If TO or FROM is in the middle of a CJK char,
+throw away the char and append a space.
 
 This function doesn't respect 'display or 'invisible text property.
 TODO Truly support CJK, instead of just han."
