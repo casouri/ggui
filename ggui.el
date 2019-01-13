@@ -752,7 +752,7 @@ This function is not destructive.")
   (if (seq-find (lambda (elt) (eq elt view)) seq)
       (ggui--remove-display view)))
 
-;;;;; (Side effect) implementation for sequence
+;;;;; (Side effect) implementation for sequence (identical)
 
 ;; identical
 (cl-defmethod ggui-insert-at :after ((view sequence) (seq sequence) n)
@@ -769,7 +769,8 @@ This function is not destructive.")
 
 ;;;;; Methods for ggui-view functions for list
 
-;; seq to view
+;;;;;;; seq to view
+
 (cl-defmethod ggui-put-before ((seq sequence) (view ggui-view))
   "Put every view in SEQ before VIEW, in normal order.
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5."
@@ -793,7 +794,8 @@ E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
       (setq last-left this)))
   seq)
 
-;; view to seq
+;;;;;;; view to seq
+
 (cl-defmethod ggui-put-before ((view ggui-view) (seq sequence))
   "Put VIEW before the first element of SEQ."
   (unless seq (signal 'invalid-argument '("SEQ is nil")))
@@ -806,13 +808,16 @@ E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
   (ggui-put-after view (seq-elt seq (1- (seq-length seq))))
   view)
 
-;; seq to seq
+;;;;;;; seq to seq
+
 (cl-defmethod ggui-put-before ((seq1 sequence) (seq2 sequence))
   "Put VIEW before the first element of SEQ."
   (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
   (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
   (ggui-put-before seq1 (seq-elt seq2 0))
   seq1)
+
+;; TODO move check into :before
 
 (cl-defmethod ggui-put-after ((seq1 sequence) (seq2 sequence))
   "Put VIEW after the last element of SEQ."
@@ -1621,6 +1626,8 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
 ;;;;; Side effect of node and indent-view and view
 
+;;;;;; node
+
 (cl-defmethod ggui-put-under-at :after ((child ggui-node-view) (parent ggui-node-view) n)
   "Put CHILD under PARENT at position n."
   ;; this doesn't modify the children list,
@@ -1629,15 +1636,26 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
   ;; change indent level
   (ggui--sync-indent child))
 
-(cl-defmethod ggui-put-after :after ((node ggui-node-view) (_ ggui-view))
+;;;;;; view & node
+
+(cl-defmethod ggui-put-after ((node ggui-node-view) (node-b ggui-node-view))
+  (let ((children (ggui--children node-b)))
+    (if (and (not (eq (ggui--parent node) node-b))
+             children)
+        (ggui-put-after node children)
+      (call-next-method node node-b))))
+
+(cl-defmethod ggui-put-after :after ((node ggui-node-view) _)
   ;; if you put A after B, A's children should follow A
   (when-let ((children (ggui--children node)))
     (ggui-put-after children node)))
 
-(cl-defmethod ggui-put-before :after ((node ggui-node-view) (_ ggui-view))
+(cl-defmethod ggui-put-before :after ((node ggui-node-view) _)
   ;; if you put A after B, A's children should follow A
   (when-let ((children (ggui--children node)))
     (ggui-put-after children node)))
+
+;;;;;; indent (& node)
 
 (cl-defmethod initialize-instance :after ((node ggui-node-view) &rest _)
   (ggui--sync-indent node))
