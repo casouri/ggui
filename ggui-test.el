@@ -234,7 +234,7 @@ You can't edit anything because it's in read only mode.")))
                                                                                   (ggui--edit
                                                                                    (goto-char (point-max))
                                                                                    (insert "\n" str)))))
-                                                                (lambda ()))) "Insert" "Insert in the beginning")))
+                                                                (lambda (str) (message "Abort")))) "Insert" "Insert in the beginning")))
 (defvar page2-map (ggui-define-map "This is map for page 2.\n\n"
                                    "C-c n" (ggui-fn-binding (lambda () (interactive) (ggui-segue-to 'page1))
                                                             "Next")
