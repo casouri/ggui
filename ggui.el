@@ -303,8 +303,8 @@ for overlay properties to add to the result."
   (ggui-view :text text :property-list property-list))
 
 (cl-defmethod ggui--presentp ((view ggui-view))
-  "Return t if VIEW is inserted into some buffer, nil if not."
-  ;; if the overlay is in tmp buffer, it is no present.
+  "Return t if VIEW is inserted into some buffer (present), nil if not."
+  ;; if the overlay is in tmp buffer, it is not presented.
   (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
 
 (defun ggui--translate-pos (line column buffer)
