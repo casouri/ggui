@@ -583,7 +583,9 @@ point 4 is the first (user defined) view.")
 If buffer already exists, it is erased.
 
 If the buffer is already setup, do nothing.
-However, if FORCE is t, set it up it anyway."
+However, if FORCE is t, set it up it anyway.
+
+Error: `ggui-buffer-mising'."
   (let ((buffer (cond ((bufferp buffer) buffer)
                       ((stringp buffer) (get-buffer-create buffer))
                       (t (signal 'invalid-argument (list "BUFFER is not a buffer nor a string" buffer))))))
