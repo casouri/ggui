@@ -268,6 +268,7 @@ Don't use `slot-value' on this, instead, use the accessor `ggui--overlay'.")
 It cannot be a empty string, otherwise delimiter checkers error when inserting the view.")
    (property-list
     :documentation "Dummy slot used by init: (PROP VALUE PROP VALUE).
+DO NOT USE THIS SLOT!
 Use `ggui--overlay-put' to add properties to overlay."))
   ;; It is covered by an overlay (slot), and must have line feed and after it (which is included).
   "A piece of overlay-managed text.
