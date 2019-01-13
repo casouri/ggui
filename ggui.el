@@ -330,8 +330,6 @@ for overlay properties to add to the result."
 
 ;;;;; Beg & end & buffer
 
-;; enable if they are actually needed
-
 (cl-defmethod ggui--beg-mark ((view ggui-view))
   "Return the beginning of VIEW as a marker."
   (let ((overlay (ggui--overlay view)))
