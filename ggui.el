@@ -150,7 +150,7 @@ Return nil if no match is found."
                   (throw 'found idx))
                 (cl-incf idx))
               nil))
-    (signal 'invalid-arguments "LST is nil")))
+    (signal 'invalid-arguments (list "LST is nil"))))
 
 ;;;;; CJK length
 
