@@ -1535,6 +1535,7 @@ This function should be called inside other functions for a user input."
         (old-hint-binding (ggui--hint-binding (ggui-this-app))))
     (select-window (ggui--pop-biggie (ggui-this-page)))
     (switch-to-buffer (ggui--biggiebuffer (ggui-this-app)))
+    (erase-buffer)
     (setq ggui-biggie-finish-fn (lambda (str)
                                   (funcall finish-callback str)
                                   (setf (ggui--hint-doc (ggui-this-app))
