@@ -97,14 +97,17 @@ STR is format string, ARGS are like that in `format'."
   "Same as `message'.
 STR and ARGS are like those in format.
 LEVEL is a symbol, can be :info :warn or :error."
-  (when (>= (plist-get ggui--log-level-plist level) ; this log is more bad ass than setting
-            (plist-get ggui--log-level-plist ggui-log-level))
-    (apply #'message
-           (format "GGUI %s %s: %s"
-                   (format-time-string "%Y-%m-%d %T" (current-time))
-                   (plist-get '(:warn "Warn" :error "Error" :info "Info") level)
-                   str)
-           args)))
+  (if-let ((this-level (plist-get ggui--log-level-plist level))
+           (min-level (plist-get ggui--log-level-plist ggui-log-level)))
+      (when (>= this-level ; this log is more bad ass than setting
+                min-level)
+        (apply #'message
+               (format "GGUI %s %s: %s"
+                       (format-time-string "%Y-%m-%d %T" (current-time))
+                       (plist-get '(:warn "Warn" :error "Error" :info "Info") level)
+                       str)
+               args))
+    (signal 'ggui-invalid-argument (list "LEVEL is not one among `ggui-log-level-plist'"))))
 
 (defmacro ggui--push-end (elt lst)
   "Push ELT to the end of LST."
@@ -150,7 +153,7 @@ Return nil if no match is found."
                   (throw 'found idx))
                 (cl-incf idx))
               nil))
-    (signal 'invalid-arguments (list "LST is nil"))))
+    (signal 'wrong-type-argument (list "LST is nil"))))
 
 (defmacro ggui-seq-last (seq)
   "The last element of SEQ."
@@ -255,6 +258,7 @@ Each function in the hook is called with last-buffer and this-buffer.")
 (define-error 'ggui-prohibit-edit "This edition is not allowed" '(error))
 (define-error 'ggui-view-not-present "This view is not on any buffer." '(error))
 (define-error 'ggui-element-missing "The element is assumed to be in a list, but it is not" '(error))
+(define-error 'ggui-invalid-argument "The argument is invalid" '(error))
 
 
 ;;;; ggui-view
@@ -582,7 +586,7 @@ However, if FORCE is t, set it up it anyway.
 Error: `ggui-buffer-mising'."
   (let ((buffer (cond ((bufferp buffer) buffer)
                       ((stringp buffer) (get-buffer-create buffer))
-                      (t (signal 'invalid-argument (list "BUFFER is not a buffer nor a string" buffer))))))
+                      (t (signal 'wrong-type-argument (list "BUFFER is not a buffer nor a string" buffer))))))
     (unless (buffer-live-p buffer) (signal 'ggui-buffer-missing (list "BUFFER is not a live buffer" buffer)))
     ;; setup
     (with-current-buffer buffer
@@ -725,7 +729,7 @@ This function is not destructive.")
   (when (or (< (seq-length seq) n)
             (< n 0))
     (signal 'args-out-of-range nil))
-  (unless seq (signal 'invalid-arguments (list "SEQ is nil"))))
+  (unless seq (signal 'wrong-type-argument (list "SEQ is nil"))))
 
 (cl-defmethod ggui-insert-at (elt (seq list) n)
   (seq-concatenate 'list (seq-subseq seq 0 n)
@@ -766,7 +770,7 @@ This function is not destructive.")
 (cl-defmethod ggui-put-before ((seq sequence) (view ggui-view))
   "Put every view in SEQ before VIEW, in normal order.
 E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5."
-  (unless seq (signal 'invalid-argument '("SEQ is nil")))
+  (unless seq (signal 'wrong-type-argument '("SEQ is nil")))
   (ggui-put-before (seq-elt seq 0) view)
   (ggui-put-after (seq-subseq seq 1) (seq-elt seq 0))
   seq)
@@ -774,7 +778,7 @@ E.g., SEQ: (1 2 3 4) VIEW: 5 -> 1 2 3 4 5."
 (cl-defmethod ggui-put-after ((seq sequence) (view ggui-view))
   "Put every view in SEQ after VIEW, in normal order.
 E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
-  (unless seq (signal 'invalid-argument '("SEQ is nil")))
+  (unless seq (signal 'wrong-type-argument '("SEQ is nil")))
   (let ((last-left view)
         (index 0)
         (len (seq-length seq))
@@ -788,15 +792,20 @@ E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
 
 ;;;;;;; view to seq
 
+(defmacro ggui--check-nil (stuff)
+  "Check STUFF is not nil.
+If STUFF is nil, signal `wrong-type-argument'."
+  `(unless ,stuff (signal 'wrong-type-argument ,(format "%s cannot be nil" (upcase (symbol-name stuff))))))
+
 (cl-defmethod ggui-put-before ((view ggui-view) (seq sequence))
   "Put VIEW before the first element of SEQ."
-  (unless seq (signal 'invalid-argument '("SEQ is nil")))
+  (ggui--check-nil seq)
   (ggui-put-before view (seq-elt seq 0))
   view)
 
 (cl-defmethod ggui-put-after ((view ggui-view) (seq sequence))
   "Put VIEW after the last element of SEQ."
-  (unless seq (signal 'invalid-argument '("SEQ is nil")))
+  (ggui--check-nil seq)
   (ggui-put-after view (seq-elt seq (ggui-seq-last seq)))
   view)
 
@@ -804,8 +813,7 @@ E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
 
 (cl-defmethod ggui-put-before ((seq1 sequence) (seq2 sequence))
   "Put VIEW before the first element of SEQ."
-  (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
-  (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
+  (ggui--check-nil seq)
   (ggui-put-before seq1 (seq-elt seq2 0))
   seq1)
 
@@ -813,15 +821,14 @@ E.g., SEQ: (2 3 4 5) VIEW: 1 -> 1 2 3 4 5."
 
 (cl-defmethod ggui-put-after ((seq1 sequence) (seq2 sequence))
   "Put VIEW after the last element of SEQ."
-  (unless seq1 (signal 'invalid-argument '("SEQ1 is nil")))
-  (unless seq2 (signal 'invalid-argument '("SEQ2 is nil")))
+  (ggui--check-nil seq)
   (ggui-put-after seq1 (seq-elt seq2 (1- (seq-length seq2))))
   seq1)
 
 (cl-defmethod ggui--remove-display ((seq sequence))
   "Remove display of SEQ.
 This function is recursive."
-  (unless seq (signal 'invalid-argument '("SEQ is nil")))
+  (ggui--check-nil seq)
   (seq-map #'ggui--remove-display seq))
 
 ;;;; App
