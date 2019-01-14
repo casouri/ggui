@@ -1092,7 +1092,7 @@ Return that window, nil if PAGE doesn't want to (or can't) show hint."
   (if-let ((window (ggui--buffer-window (ggui--hint-buffer (ggui-this-app)))))
       window
     (display-buffer-in-side-window (get-buffer-create " tmp")
-                                   '((side . bottom) (slot . -1)))))
+                                   '((side . bottom) (slot . -1))))) ; biggie is 1
 
 ;;;;; Default hint
 
@@ -1466,7 +1466,7 @@ large (deep) keymaps."
 (defvar ggui-biggie-pop-fn
   (lambda (_) (let ((window (display-buffer-in-side-window
                              (ggui--biggiebuffer (ggui-this-app))
-                             '((side . bottom) (slot . -1)))))
+                             '((side . bottom) (slot . 1))))) ; hint is -1
                 (or window ;; TODO look into it
                     (pop-to-buffer (ggui--biggiebuffer (ggui-this-app))))))
   "Functions used to display biggiebuffer.
