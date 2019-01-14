@@ -1067,24 +1067,25 @@ No assumptions about the position of the point.")
                        ggui-bottom-view))
     buffer))
 
-;;;; pop hint (optional)
+;;;;; pop hint (optional)
 
 ;; please compiler
-(defvar ggui--map-mode-map)
 (defvar ggui--default-hint)
+(defvar ggui--local-map)
 
 (defun ggui-show-hint (&optional buffer)
   "Display hint for current buffer or BUFFER.
 Return the value of `ggui--default-hint.'"
   (with-current-buffer (or buffer (current-buffer))
-    (when ggui--map-mode-map
-      (setq ggui--default-hint
-            (ggui--display-map-hint ggui--map-mode-map)))))
+    (if ggui--local-map
+        (setq ggui--default-hint
+              (ggui--display-map-hint ggui--local-map))
+      (ggui-log :debug "Try to display hint but no map is set."))))
 
 (cl-defgeneric ggui--ensure-hint ((page ggui-page))
   "Make sure there is a window displaying hint buffer.
 Implementation can vary by PAGE.
-Return that window, return nil if PAGE doesn't want to (or can't) show hint."
+Return that window, nil if PAGE doesn't want to (or can't) show hint."
   (ignore page)
   (if-let ((window (ggui--buffer-window (ggui--hint-buffer (ggui-this-app)))))
       window
@@ -1101,12 +1102,14 @@ Don't set this to nil.")
 ;; And if you display that hint butter, no info will be there
 ;; properly handle that when redisplaying hint window
 
-(defun ggui--hint-recover-default-hint (_1 _2)
+(defun ggui--hint-recover-default-hint (&optional _1 _2)
+  ;; called with last buffer and this buffer in after buffer change hook
   "Recover the default hint for the current buffer."
   ;; run when:
   ;; buffer changes
   ;; a command in a `ggui-map' runs
-  (when-let (app (ignore-errors (ggui-this-app)))
+  (when-let ((app (condition-case nil (ggui-this-app)
+                    (ggui-app-missing nil))))
     (setf (ggui--hint-doc app)
           (nth 0 ggui--default-hint)
           (ggui--hint-binding app)
@@ -1159,6 +1162,9 @@ Error: `ggui-app-misssing'."
 (defvar ggui-binding-pad-between " -> "
   "Padding between key and definition of a binding in hint buffer.")
 
+(defvar ggui--local-map nil
+  "Local `ggui-map'. Used to display hint when no default hint is set.")
+
 (defun ggui-use-map (gmap)
   "Activate `ggui-map' GMAP in the current buffer and display hint.
 This map only activates for one command."
@@ -1169,9 +1175,11 @@ This map only activates for one command."
   "Activate `ggui-map' GMAP in the current buffer and display hint.
 
 Unlike `ggui-use-map', MAP remains persistent."
-  (ggui--map-mode)
-  ;; (use-local-map (ggui-map-map gmap))
-  (setq-local ggui--map-mode-map (ggui-map-map gmap))
+  (let ((my-map (copy-keymap (ggui-map-map gmap))))
+    (when-let ((local-map (current-local-map)))
+      (set-keymap-parent my-map local-map))
+    (use-local-map my-map)
+    (setq ggui--local-map my-map))
   (setq ggui--default-hint (ggui--display-map-hint gmap)))
 
 (defun ggui-define-map (doc &rest binding-list)
@@ -1232,20 +1240,14 @@ HELP is the optional help tooltip."
 
 ;;;;; Backstage
 
-(define-minor-mode ggui--map-mode
-  "A dummy minor mode of `ggui-map'."
-  :lighter ""
-  :keymap nil ; default to nil
-  nil)
-
 (defun ggui--display-map-hint (gmap)
   "Display `ggui-map' GMAP's documentation and bindings in hint buffer.
 Return list (doc hint)."
   (list (setf (ggui--hint-doc (ggui-this-app)) (ggui-map-doc gmap))
         (setf (ggui--hint-binding (ggui-this-app))
-              (if-let ((window (window (ggui--ensure-hint (ggui-this-page)))))
+              (if-let ((window (ggui--ensure-hint (ggui-this-page))))
                   (ggui--map-to-hint (ggui-map-map gmap) window)
-                (ggui-log :info "Try to display hint but hint buffer is not on screen.")
+                (ggui-log :debug "Try to display hint but hint buffer is not on screen.")
                 ""))))
 
 (defun ggui--hint-len (hint)
