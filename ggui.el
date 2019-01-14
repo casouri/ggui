@@ -675,12 +675,12 @@ If N is negative, toggle backward N times."
 (cl-defmethod ggui-hide ((view ggui-hideshow))
   (if (ggui--presentp view)
       (ggui--overlay-put view 'invisible t)
-    (signal 'ggui-view-not-present)))
+    (signal 'ggui-view-not-present nil)))
 
 (cl-defmethod ggui-show ((view ggui-hideshow))
   (if (ggui--presentp view)
       (ggui--overlay-put view 'invisible nil)
-    (signal 'ggui-view-not-present)))
+    (signal 'ggui-view-not-present nil)))
 
 ;;;; List
 ;;
@@ -995,12 +995,12 @@ PAGE is a symbol representing the page in app's `ggui--page-alist'."
 (defmacro ggui-this-app ()
   "Get current frame's app"
   `(or (frame-parameter nil 'ggui-app)
-       (signal 'ggui-app-missing)))
+       (signal 'ggui-app-missing nil)))
 
 (defmacro ggui-this-page ()
   "Get current frame's current page."
   `(or (frame-parameter nil 'ggui-page)
-       (signal 'ggui-page-missing)))
+       (signal 'ggui-page-missing nil)))
 
 ;;;; Hint buffer
 ;; Hint buffer displays the available bindings and
