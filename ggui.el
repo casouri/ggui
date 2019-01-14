@@ -1531,23 +1531,17 @@ If non-nil, UPDATE-CALLBACK will be called with biggiebuffer's content
 whenever biggiebuffer's content has changed.
 
 This function should be called inside other functions for a user input."
-  (let ((old-hint-doc (ggui--hint-doc (ggui-this-app)))
-        (old-hint-binding (ggui--hint-binding (ggui-this-app))))
-    (select-window (ggui--pop-biggie (ggui-this-page)))
-    (switch-to-buffer (ggui--biggiebuffer (ggui-this-app)))
-    (erase-buffer)
-    (setq ggui-biggie-finish-fn (lambda (str)
-                                  (funcall finish-callback str)
-                                  (setf (ggui--hint-doc (ggui-this-app))
-                                        old-hint-doc
-                                        (ggui--hint-binding (ggui-this-app))
-                                        old-hint-binding))
-          ggui-biggie-abort-fn abort-callback
-          ggui-biggie-update-fn update-callback)
-    (ggui-use-map-default ggui--biggie-map)
-    (if update-callback
-        (ggui-biggie-update-mode)
-      (ggui-biggie-update-mode -1))))
+  (select-window (ggui--pop-biggie (ggui-this-page)))
+  (switch-to-buffer (ggui--biggiebuffer (ggui-this-app)))
+  (erase-buffer)
+  (setq ggui-biggie-finish-fn (lambda (str)
+                                (funcall finish-callback str))
+        ggui-biggie-abort-fn abort-callback
+        ggui-biggie-update-fn update-callback)
+  (ggui-use-map-default ggui--biggie-map)
+  (if update-callback
+      (ggui-biggie-update-mode)
+    (ggui-biggie-update-mode -1)))
 
 (cl-defgeneric ggui--pop-biggie ((page ggui-page))
   "Pop a buggiebuffer. Specific location of the window and size
