@@ -954,10 +954,11 @@ Users can segue between pages.")
 ;; Set the name to `name' slot
 (cl-defgeneric ggui-get-unique-name ((app ggui-app))
   "Get a unique name and set it to `name' slot."
-  (let ((name (ggui--name app))
+  (let ((base-name (ggui--name app))
+        (name (ggui--name app))
         (num 1))
     (while (seq-find (lambda (app) (equal name (ggui--name app))) ggui-app-list)
-      (setq name (format "%s<%d>" name num))
+      (setq name (format "%s<%d>" base-name num))
       (cl-incf num))
     (setf (ggui--name app) name)))
 
