@@ -981,7 +981,7 @@ Users can segue between pages.")
 (cl-defgeneric ggui-segue ((from ggui-page) (to ggui-page))
   "Segue from FROM page to TO page.")
 
-(cl-defmethod ggui-segue :after (_ (to ggui-page))
+(cl-defmethod ggui-segue :before (_ (to ggui-page))
   (set-frame-parameter nil 'ggui-page to))
 
 (defun ggui-segue-to (page)
