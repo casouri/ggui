@@ -1553,6 +1553,7 @@ This function should be called inside other functions for a user input."
 depends on each PAGE. By default use a side window.
 Return the window used for displaying biggiebuffer,
 nil if no suitable window can be found."
+  (ignore page)
   (funcall ggui-biggie-pop-fn (ggui-this-page)))
 
 
