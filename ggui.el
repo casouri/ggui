@@ -1201,7 +1201,7 @@ Return list (doc hint)."
         (setf (ggui--hint-binding (ggui-this-app))
               (if-let ((window (ggui--buffer-window (ggui--hint-buffer (ggui-this-app)))))
                   (ggui--map-to-hint (ggui-map-map gmap) window)
-                (ggui-log 'info "Try to display hint but hint buffer is not on screen.")
+                (ggui-log :info "Try to display hint but hint buffer is not on screen.")
                 ""))))
 
 (defun ggui--hint-len (hint)
@@ -1447,7 +1447,7 @@ doesn't implement its specific pop up function (`ggui--pop-biggie').")
     (add-to-list 'ggui-biggie-history (buffer-string))
     (if ggui-biggie-finish-fn
         (funcall ggui-biggie-finish-fn (buffer-string))
-      (ggui-log 'warn "No `ggui-biggie-finish-fn' specified."))
+      (ggui-log :warn "No `ggui-biggie-finish-fn' specified."))
     (delete-window ggui-biggie-window)))
 
 (defun ggui-biggie-abort ()
@@ -1457,14 +1457,14 @@ doesn't implement its specific pop up function (`ggui--pop-biggie').")
     (ggui-biggie-update-mode -1)
     (if ggui-biggie-abort-fn
         (funcall ggui-biggie-abort-fn (buffer-string))
-      (ggui-log 'warn "No `ggui-biggie-abort-fn' specified."))
+      (ggui-log :warn "No `ggui-biggie-abort-fn' specified."))
     (delete-window ggui-biggie-window)))
 
 (defun ggui-biggie-update (_ _1 _2)
   "Update with current content."
   (if ggui-biggie-update-fn
       (fucnall ggui-biggie-update-fn (buffer-string))
-    (ggui-log 'warn "No `ggui-biggie-update-fn' specified.")))
+    (ggui-log :warn "No `ggui-biggie-update-fn' specified.")))
 
 ;;;;; Internal API
 
