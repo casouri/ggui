@@ -1055,6 +1055,30 @@ No assumptions about the position of the point.")
                        ggui-bottom-view))
     buffer))
 
+;;;; pop hint (optional)
+
+;; please compiler
+(defvar ggui--map-mode-map)
+(defvar ggui--default-hint)
+
+(defun ggui-show-hint (&optional buffer)
+  "Display hint for current buffer or BUFFER.
+Return the value of `ggui--default-hint.'"
+  (with-current-buffer (or buffer (current-buffer))
+    (when ggui--map-mode-map
+      (setq ggui--default-hint
+            (ggui--display-map-hint ggui--map-mode-map)))))
+
+(cl-defgeneric ggui--ensure-hint ((page ggui-page))
+  "Make sure there is a window displaying hint buffer.
+Implementation can vary by PAGE.
+Return that window, return nil if PAGE doesn't want to (or can't) show hint."
+  (ignore page)
+  (if-let ((window (ggui--buffer-window (ggui--hint-buffer (ggui-this-app)))))
+      window
+    (display-buffer-in-side-window (get-buffer-create " tmp")
+                                   '((side . bottom) (slot . -1)))))
+
 ;;;;; Default hint
 
 (defvar-local ggui--default-hint '("" "")
@@ -1132,8 +1156,10 @@ This map only activates for one command."
 (defun ggui-use-map-default (gmap)
   "Activate `ggui-map' GMAP in the current buffer and display hint.
 
-Unlike `ggui-use-map', MAP is persistent."
-  (use-local-map (ggui-map-map gmap))
+Unlike `ggui-use-map', MAP remains persistent."
+  (ggui--map-mode)
+  ;; (use-local-map (ggui-map-map gmap))
+  (setq-local ggui--map-mode-map (ggui-map-map gmap))
   (setq ggui--default-hint (ggui--display-map-hint gmap)))
 
 (defun ggui-define-map (doc &rest binding-list)
@@ -1194,12 +1220,18 @@ HELP is the optional help tooltip."
 
 ;;;;; Backstage
 
+(define-minor-mode ggui--map-mode
+  "A dummy minor mode of `ggui-map'."
+  :lighter ""
+  :keymap nil ; default to nil
+  nil)
+
 (defun ggui--display-map-hint (gmap)
   "Display `ggui-map' GMAP's documentation and bindings in hint buffer.
 Return list (doc hint)."
   (list (setf (ggui--hint-doc (ggui-this-app)) (ggui-map-doc gmap))
         (setf (ggui--hint-binding (ggui-this-app))
-              (if-let ((window (ggui--buffer-window (ggui--hint-buffer (ggui-this-app)))))
+              (if-let ((window (window (ggui--ensure-hint (ggui-this-page)))))
                   (ggui--map-to-hint (ggui-map-map gmap) window)
                 (ggui-log :info "Try to display hint but hint buffer is not on screen.")
                 ""))))
