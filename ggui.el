@@ -90,7 +90,7 @@ STR is format string, ARGS are like that in `format'."
 (defvar ggui-log-level :info
   "Log level of ggui, can be :error, :warning or :info.")
 
-(defvar ggui--log-level-plist '(:error 3 :warn 2 :info 1)
+(defvar ggui--log-level-plist '(:error 3 :warn 2 :info 1 :debug 0)
   "Plist used to know which level is more bad ass.")
 
 (defun ggui-log (level str &rest args)
