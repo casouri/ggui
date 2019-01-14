@@ -462,20 +462,20 @@ Should: one and only one before point, one and only one after point."
 
 ;; simple to please compiler
 ;; real definition below in "managed buffer" section
-(defvar ggui--top-view)
-(defvar ggui--bottom-view)
+(defvar ggui-top-view)
+(defvar ggui-bottom-view)
 
 (cl-defmethod ggui-put-before :before (stuff (view ggui-view))
   "Check for misuse."
-  (when (eq ggui--top-view view)
-    (signal 'ggui-prohibit-edit (list (format "Nothing can be put before a `ggui--top-view', you try to put: %s" stuff))))
+  (when (eq ggui-top-view view)
+    (signal 'ggui-prohibit-edit (list (format "Nothing can be put before a `ggui-top-view', you try to put: %s" stuff))))
   (unless (ggui--presentp view)
     (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it")))))
 
 (cl-defmethod ggui-put-after :before (stuff (view ggui-view))
   "Check for misuse."
-  (when (eq ggui--bottom-view view)
-    (signal 'ggui-prohibit-edit (list (format "Nothing can be put after a `ggui--bottom-view', you try to put: %s" stuff))))
+  (when (eq ggui-bottom-view view)
+    (signal 'ggui-prohibit-edit (list (format "Nothing can be put after a `ggui-bottom-view', you try to put: %s" stuff))))
   (unless (ggui--presentp view)
     (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it")))))
 
@@ -806,7 +806,7 @@ If STUFF is nil, signal `wrong-type-argument'."
 (cl-defmethod ggui-put-after ((view ggui-view) (seq sequence))
   "Put VIEW after the last element of SEQ."
   (ggui--check-nil seq)
-  (ggui-put-after view (seq-elt seq (ggui-seq-last seq)))
+  (ggui-put-after view (ggui-seq-last seq))
   view)
 
 ;;;;;;; seq to seq

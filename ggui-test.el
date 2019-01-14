@@ -44,26 +44,6 @@ It also wraps everything in `save-excursion' for convenience."
 ;;; Test
 
 ;;;; Test view
-(ert-deftest ggui-goto ()
-  (ggui-test-with-buffer (buffer buffer1)
-    (let ()
-      ;; 0:0
-      (ggui-goto 0 0 buffer)
-      (should (eq (point) 1))
-      ;; random pos
-      (with-current-buffer buffer1 (insert "1234\n678\n01234\n"))
-      (ggui-goto 2 3 buffer1)
-      (should (eq (point) 13))
-      ;; TODO go to file
-      ;; out of range
-      (should-error (ggui-goto 999999 99999 buffer))
-      ;; not enough arg
-      (should-error (ggui-goto 0 0))
-      ;; buffer missing
-      (should-error (ggui-goto 0 0 (generate-new-buffer-name "?????????????")))
-      ;; file missing
-      (should-error (ggui-goto 0 0 nil "????"))
-      nil)))
 
 (ert-deftest ggui-view ()
   (ggui-test-with-buffer (buf1 buf2)
@@ -82,7 +62,7 @@ It also wraps everything in `save-excursion' for convenience."
         ;; put
         (ggui-put-after view1 ggui-top-view)
         (should (equal "T\n\nhi\n\nB" (buffer-string)))
-        (ggui-put-before view2 ggui--bottom-view)
+        (ggui-put-before view2 ggui-bottom-view)
         (should (equal "T\n\nhi\n\nyo\n\nB" (buffer-string)))
         ;; remove
         (ggui--remove-display view1)
@@ -92,7 +72,7 @@ It also wraps everything in `save-excursion' for convenience."
         (should (equal "T\n\nyooooo\n\nB" (buffer-string)))
         ;; error
         (should-error (ggui-put-before "!" ggui-top-view))
-        (should-error (ggui-put-after "!" ggui--bottom-view))))))
+        (should-error (ggui-put-after "!" ggui-bottom-view))))))
 
 (ert-deftest ggui-seq ()
   (ggui-test-with-buffer (buf1)
