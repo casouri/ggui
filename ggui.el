@@ -232,7 +232,7 @@ TODO Truly support CJK, instead of just han."
 
 (defvar ggui--after-buffer-change-hook ()
   "This hook runs after buffer changes.
-Each function in the hook is called with last-buffer and this-buffer.")
+Each function in the hook is called with `last-buffer' and this-buffer.")
 
 (defvar ggui--last-buffer nil
   "Used by `ggui--after-buffer-change-hook'.")
@@ -569,7 +569,7 @@ Should: one and only one before point, one and only one after point."
 (defconst ggui--top-text "T" "(Invisible) text of `ggui-top-view'.")
 (defconst ggui--bottom-text "B" "(Invisible) text of `ggui-bottom-view'.")
 (defconst ggui-point-min 3
-  "The point min of a ggui-view managed buffer.
+  "The point min of a `ggui-view' managed buffer.
 
 Point 1 is `ggui--top-text',
 point 2 is a delimiter,
@@ -610,7 +610,7 @@ Error: `ggui-buffer-mising'."
   (get-buffer buffer))
 
 (defun ggui-get-managed-buffer-or-create (buffer)
-  "Returns a ggui-view managed buffer.
+  "Return a `ggui-view' managed buffer.
 BUFFER can be a buffer or a string.
 If BUFFER is a buffer, set it up as a managed buffer.
 If BUFFER is a name and already has a buffer associates with it,
@@ -620,7 +620,7 @@ set it up as a managed buffer."
     buf))
 
 (defun ggui-generate-managed-buffer (name)
-  "Return a new ggui-view managed buffer with name NAME.
+  "Return a new `ggui-view' managed buffer with name NAME.
 NAME might be modified if some other buffer with the same name exists."
   (let ((buf (generate-new-buffer name)))
     (ggui--setup-buffer buf)
@@ -813,7 +813,8 @@ If STUFF is nil, signal `wrong-type-argument'."
 
 (cl-defmethod ggui-put-before ((seq1 sequence) (seq2 sequence))
   "Put VIEW before the first element of SEQ."
-  (ggui--check-nil seq)
+  (ggui--check-nil seq1)
+  (ggui--check-nil seq2)
   (ggui-put-before seq1 (seq-elt seq2 0))
   seq1)
 
@@ -821,7 +822,8 @@ If STUFF is nil, signal `wrong-type-argument'."
 
 (cl-defmethod ggui-put-after ((seq1 sequence) (seq2 sequence))
   "Put VIEW after the last element of SEQ."
-  (ggui--check-nil seq)
+  (ggui--check-nil seq1)
+  (ggui--check-nil seq2)
   (ggui-put-after seq1 (seq-elt seq2 (1- (seq-length seq2))))
   seq1)
 
@@ -1419,9 +1421,10 @@ large (deep) keymaps."
                          ;; 3.2 def = (name . func-symbol-or-lambda) or (name help . func-symbol-or-lambda)
                          ((and def (listp def)) ; in case def = nil
                           (progn (setq name (let ((name (nth 0 def))) (if (stringp name) name nil)))
-                                 (setq help (let ((help (condition-case err
+                                 (setq help (let ((help (condition-case nil
                                                             (nth 1 def)
-                                                          (wrong-type-argument nil)))) (if (stringp help) help nil)))
+                                                          (wrong-type-argument nil))))
+                                              (if (stringp help) help nil)))
                                  name))
                          ;; 3.3 def = (function func-symbol) or (quote func-symbol)
                          ((and (symbolp def)
@@ -1509,7 +1512,7 @@ doesn't implement its specific pop up function (`ggui--pop-biggie').")
 (defun ggui-biggie-update (_ _1 _2)
   "Update with current content."
   (if ggui-biggie-update-fn
-      (fucnall ggui-biggie-update-fn (buffer-string))
+      (funcall ggui-biggie-update-fn (buffer-string))
     (ggui-log :warn "No `ggui-biggie-update-fn' specified.")))
 
 ;;;;; Internal API
