@@ -993,14 +993,19 @@ PAGE is a symbol representing the page in app's `ggui--page-alist'."
 ;;;;; Helpers
 
 (defmacro ggui-this-app ()
-  "Get current frame's app"
+  "Get current frame's app.
+
+Error: `ggui-app-missing'."
   `(or (frame-parameter nil 'ggui-app)
        (signal 'ggui-app-missing nil)))
 
 (defmacro ggui-this-page ()
-  "Get current frame's current page."
+  "Get current frame's current page.
+
+Error: `ggui-page-missing'."
   `(or (frame-parameter nil 'ggui-page)
        (signal 'ggui-page-missing nil)))
+
 
 ;;;; Hint buffer
 ;; Hint buffer displays the available bindings and
