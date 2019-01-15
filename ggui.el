@@ -1711,8 +1711,8 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
   (if-let ((parent (ggui--parent node)))
       (concat (ggui--indent-prefix-for-children parent)
               (if (ggui--last-child-p node)
-                  "    "
-                "│   "))
+                  "  "
+                "│ "))
     ""))
 
 (cl-defmethod ggui--view-indent ((node ggui-node-view))
@@ -1721,7 +1721,7 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
     (concat (ggui--indent-prefix-for-children (ggui--parent node))
             (if (ggui--last-child-p node)
                 "└" "├")
-            "───")))
+            "─")))
 
 ;;;;; Side effect of node and indent-view and view
 
