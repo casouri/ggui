@@ -316,7 +316,9 @@ for overlay properties to add to the result."
   (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
 
 (cl-defmethod ggui--presentp ((seq sequence))
-  (apply #'and (seq-map #'ggui--presentp seq)))
+  (seq-reduce (lambda (a b) (and a b))
+              (seq-map #'ggui--presentp seq)
+              t))
 
 (defun ggui--make-overlay (beg end &optional buffer &rest property-list)
   "Return an overlay from BEG to END in BUFFER.
