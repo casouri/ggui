@@ -1666,27 +1666,26 @@ Return nil otherwise."
   "Return t if NODE should update its children.")
 
 ;;;; indent-view
+;;
+;; Notes on accessing slots:
+;; always use the accessor `ggui--<slot>',
+;; never use `slot-value'!
+;; because some classes (like this one)
+;; precess the slot specially before
+;; returning it.
+;;
+;; In the case of `ggui-indent-view',
+;; it adds indent before return.
 
 (ggui-defclass ggui-indent-view (ggui-view)
   ((indent-level
     :initform 0
     :type integer
-    :documentation "The level of indent.")
-   (raw-text
-    :initform ""
-    :type string
-    :documentation "Internal use only. The actual slot used to store text."))
+    :documentation "The level of indent."))
   "A view that carries indent information and displays with indent.")
 
-(cl-defmethod initialize-instance :after ((view ggui-indent-view) &rest _)
-  (setf (slot-value view 'raw-text) (slot-value view 'text))
-  (slot-makeunbound view 'text))
-
 (cl-defmethod ggui--text ((view ggui-indent-view))
-  (concat (ggui--view-indent view) (ggui--raw-text view)))
-
-(cl-defmethod (setf ggui--text) (text (view ggui-indent-view))
-  (setf (ggui--raw-text view) text))
+  (concat (ggui--view-indent view) (slot-value view 'text)))
 
 (cl-defgeneric ggui--view-indent ((view ggui-indent-view))
   "Return the indent text for VIEW."
