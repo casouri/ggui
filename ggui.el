@@ -1387,6 +1387,8 @@ This is primarily used by `ggui-map', which are small maps
 (bindings to other `ggui-map's are lambdas instead of other keymaps),
 so it is recursive (unlike which-key). You might not want to use it on
 large (deep) keymaps."
+  ;; TODO use a clearer pattern matching syntax
+  ;; to match elements in keymap
   (let (key ; type
         def ; binding
         name ; item-name
