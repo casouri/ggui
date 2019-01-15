@@ -1663,7 +1663,12 @@ Return nil otherwise."
 ;;;; node-view
 
 (ggui-defclass ggui-node-view (ggui-indent-view ggui-node)
-  ()
+  ((lazy
+    :read-only t
+    :type boolean
+    :initform nil
+    :documentation "A node view is lazy if its children doesn't follow it when it is displayed.
+Instead, they are shown when the node expands."))
   "A node that is also a view.
 A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
@@ -1704,18 +1709,45 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
   (let ((children (ggui--children node-b)))
     (if (and (not (eq (ggui--parent node) node-b))
              children)
-        (ggui-put-after node children)
+        ;; if node-b has children,
+        ;; put node after its children
+        (if (ggui--lazy node-b)
+            ;; if node-b is lazy, it can be excused if children are not displayed
+            ;; this is save because laziness is read-only
+            (condition-case nil
+                (ggui-put-after node children)
+              (ggui-view-not-present (cl-call-next-method node node-b)))
+          (ggui-put-after node children))
+      ;; otherwise just put node after node-b as usual
       (cl-call-next-method node node-b))))
+
+(cl-defmethod ggui-expand-children ((node ggui-node-view) &optional depth)
+  "Expand and show NODE's children.
+DEPTH is maximum levels of children to display, nil means 1.
+Set DEPTH to 'infinity if you want to expand all possible levels.
+Return nil"
+  (when-let ((children (ggui--children node)))
+    (if (ggui--presentp children)
+        (ggui-show children)
+      (ggui-put-after children node))
+    (unless (or (not depth) ; depth = nil
+                (eq depth 1))
+      (dolist (child children)
+        (ggui-expand-children child (1- depth))))
+    nil))
+
+(cl-defgeneric ggui--children-follow-node ((node ggui-node-view))
+  "Make children follow node when node is displayed."
+  (unless (ggui--lazy node)
+    (ggui-expand-children node)))
 
 (cl-defmethod ggui-put-after :after ((node ggui-node-view) _)
   ;; if you put A after B, A's children should follow A
-  (when-let ((children (ggui--children node)))
-    (ggui-put-after children node)))
+  (ggui--children-follow-node node))
 
 (cl-defmethod ggui-put-before :after ((node ggui-node-view) _)
   ;; if you put A after B, A's children should follow A
-  (when-let ((children (ggui--children node)))
-    (ggui-put-after children node)))
+  (ggui--children-follow-node node))
 
 ;;;;;; indent (& node)
 
