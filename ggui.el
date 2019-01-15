@@ -139,8 +139,8 @@ If STR is shorter than LEN, spaces are padded on the SIDE."
       (if pad
           (let ((padding (make-string (- len real-len) ?\s)))
             (pcase pad
-              ('left (concat str padding))
-              ('right (concat padding str))
+              ('right (concat str padding))
+              ('left (concat padding str))
               (_ (signal 'ggui-invalid-argument "PAD should be either 'left or 'right, you passed %s" pad))))
         str))))
 
@@ -1357,7 +1357,7 @@ WINDOW is the window of hint buffer, it is needed for its dimensions."
                   (setf (cdr hint)
                         (let ((binding (cdr hint)))
                           (if binding
-                              (ggui--fix-len-visual binding max-def-len 'left)
+                              (ggui--fix-len-visual binding max-def-len 'right)
                             (make-string max-def-len ?\s)))))
                 column)))
     ;; flat matric into a list with padding
