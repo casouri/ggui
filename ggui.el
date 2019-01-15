@@ -122,6 +122,7 @@ LEVEL is a symbol, can be :info :warn or :error."
 LEN must be a visual length, i.e. returned by `ggui--visual-length'.
 
 If PAD is non-nil, PAD STR with space when STR is shorter than LEN.
+Otherwise (PAD nil) just return STR.
 IF PAD is 'right, pad on right, if it is 'left, pad on left.
 
 Visual means two things:
@@ -135,11 +136,13 @@ If STR is shorter than LEN, spaces are padded on the SIDE."
         (if (> len 2)
             (concat (ggui--visual-substring str 0 (- len 2)) "..")
           (ggui--visual-substring str 0 len))
-      (let ((padding (make-string (- len real-len) ?\s)))
-        (pcase pad
-          ('left (concat str padding))
-          ('right (concat padding str))
-          (_ (signal 'ggui-invalid-argument "PAD should be either 'left or 'right, you passed %s" pad)))))))
+      (if pad
+          (let ((padding (make-string (- len real-len) ?\s)))
+            (pcase pad
+              ('left (concat str padding))
+              ('right (concat padding str))
+              (_ (signal 'ggui-invalid-argument "PAD should be either 'left or 'right, you passed %s" pad))))
+        str))))
 
 (defun ggui--buffer-window (buffer &optional frame)
   "Return the first window found in FRAME that displays BUFFER.
