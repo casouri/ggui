@@ -1675,9 +1675,12 @@ Return nil otherwise."
    (raw-text
     :initform ""
     :type string
-    :documentation "Internal. In `ggui-indent-view',
-`text' slot become virtual, `raw-text' stores the actual text."))
+    :documentation "Internal use only. The actual slot used to store text."))
   "A view that carries indent information and displays with indent.")
+
+(cl-defmethod initialize-instance :after ((view ggui-node-view))
+  (setf (slot-value view 'raw-text) (slot-value view 'text))
+  (slot-makeunbound view 'text))
 
 (cl-defmethod ggui--text ((view ggui-indent-view))
   (concat (ggui--view-indent view) (ggui--raw-text view)))
