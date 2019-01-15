@@ -1678,7 +1678,7 @@ Return nil otherwise."
     :documentation "Internal use only. The actual slot used to store text."))
   "A view that carries indent information and displays with indent.")
 
-(cl-defmethod initialize-instance :after ((view ggui-node-view))
+(cl-defmethod initialize-instance :after ((view ggui-indent-view) &rest _)
   (setf (slot-value view 'raw-text) (slot-value view 'text))
   (slot-makeunbound view 'text))
 
