@@ -116,10 +116,13 @@ LEVEL is a symbol, can be :info :warn or :error."
   ;; (0.099558 1 0.0901969999999892)
   `(setf ,lst (append ,lst (list ,elt))))
 
-(defun ggui--fix-len-visual (str len)
-  "Adjust STR to have length LEN, either by chopping or padding.
+(defun ggui--fix-len-visual (str len &optional pad)
+  "Trim STR to length LEN.
 
 LEN must be a visual length, i.e. returned by `ggui--visual-length'.
+
+If PAD is non-nil, PAD STR with space when STR is shorter than LEN.
+IF PAD is 'right, pad on right, if it is 'left, pad on left.
 
 Visual means two things:
 1. length is measured in visual way, i.e., CJK chars occupy two units.
@@ -132,7 +135,11 @@ If STR is shorter than LEN, spaces are padded on the SIDE."
         (if (> len 2)
             (concat (ggui--visual-substring str 0 (- len 2)) "..")
           (ggui--visual-substring str 0 len))
-      (concat str (make-string (- len real-len) ?\s)))))
+      (let ((padding (make-string (- len real-len) ?\s)))
+        (pcase pad
+          ('left (concat str padding))
+          ('right (concat padding str))
+          (_ (signal 'ggui-invalid-argument "PAD should be either 'left or 'right, you passed %s" pad)))))))
 
 (defun ggui--buffer-window (buffer &optional frame)
   "Return the first window found in FRAME that displays BUFFER.
@@ -1347,7 +1354,7 @@ WINDOW is the window of hint buffer, it is needed for its dimensions."
                   (setf (cdr hint)
                         (let ((binding (cdr hint)))
                           (if binding
-                              (ggui--fix-len-visual binding max-def-len)
+                              (ggui--fix-len-visual binding max-def-len 'left)
                             (make-string max-def-len ?\s)))))
                 column)))
     ;; flat matric into a list with padding
