@@ -315,6 +315,9 @@ for overlay properties to add to the result."
   ;; if the overlay is in tmp buffer, it is not presented.
   (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
 
+(cl-defmethod ggui--presentp ((seq sequence))
+  (apply #'and (seq-map #'ggui--presentp seq)))
+
 (defun ggui--make-overlay (beg end &optional buffer &rest property-list)
   "Return an overlay from BEG to END in BUFFER.
 
@@ -677,10 +680,16 @@ If N is negative, toggle backward N times."
       (ggui--overlay-put view 'invisible t)
     (signal 'ggui-view-not-present nil)))
 
+(cl-defmethod ggui-hide ((seq sequence))
+  (seq-map #'ggui-hide seq))
+
 (cl-defmethod ggui-show ((view ggui-hideshow))
   (if (ggui--presentp view)
       (ggui--overlay-put view 'invisible nil)
     (signal 'ggui-view-not-present nil)))
+
+(cl-defmethod ggui-show ((seq sequence))
+  (seq-map #'ggui-show seq))
 
 ;;;; List
 ;;
