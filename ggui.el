@@ -121,7 +121,7 @@ LEVEL is a symbol, can be :info :warn or :error."
 
 LEN must be a visual length, i.e. returned by `ggui--visual-length'.
 
-Visual means to things:
+Visual means two things:
 1. length is measured in visual way, i.e., CJK chars occupy two units.
 2. \"..\" is added to the end of STR when chopping
 unless LEN is less than 2.
