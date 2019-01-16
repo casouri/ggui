@@ -1988,12 +1988,15 @@ CELLs in a ROW can be string or `ggui-table-cell', strings are converted
 to `ggui-table-cell' automatically."
   (mapcar #'ggui-make-row (append row-lst other-row-lst)))
 
+;;;;; node table cell
 
-;; TODO:
-;; - insert column
-;; - node-table-cell
-;; - test
-;; - header
+(ggui-defclass ggui-cell-node (ggui-node-view ggui-table-cell)
+  ()
+  "A `ggui-table-cell' that serves both as a table cell and a tree node.")
+
+(cl-defmethod ggui--text ((node ggui-cell-node))
+  (ggui--pad (ggui--pad (slot-value node 'text) node 'node)
+             node 'cell))
 
 ;;;; Provide
 
