@@ -1694,13 +1694,15 @@ Return nil otherwise."
     :initform 0
     :type integer
     :documentation "The level of indent."))
-  "A view that carries indent information and displays with indent.")
+  "A view that carries indent information and displays with indent."
+  :abstract t)
 
-(cl-defmethod ggui--text ((view ggui-indent-view))
-  (concat (ggui--view-indent view) (slot-value view 'text)))
+(cl-defgeneric ggui--view-prefix ((view ggui-indent-view) style)
+  "Return the indent text for VIEW.
+STYLE is the style of prefix, it could be 'space, 'node.")
 
-(cl-defgeneric ggui--view-indent ((view ggui-indent-view))
-  "Return the indent text for VIEW."
+(cl-defmethod ggui--view-prefix ((view ggui-indent-view) (style (eql space)))
+  (ignore style)
   (make-string (* 2 (ggui--indent-level view)) ?\s))
 
 ;;;; node-view
@@ -1715,21 +1717,25 @@ Instead, they are shown when the node expands."))
   "A node that is also a view.
 A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
+(cl-defmethod ggui--text ((node ggui-node-view))
+  (concat (ggui--view-prefix node 'node) (slot-value node 'text)))
+
 ;;;;; Method of indent-view
 
-(cl-defmethod ggui--indent-prefix-for-children ((node ggui-node-view))
+(cl-defmethod ggui--prefix-for-children ((node ggui-node-view))
   "Return the indent prefix of the NODE."
   (if-let ((parent (ggui--parent node)))
-      (concat (ggui--indent-prefix-for-children parent)
+      (concat (ggui--prefix-for-children parent)
               (if (ggui--last-child-p node)
                   "  "
                 "│ "))
     ""))
 
-(cl-defmethod ggui--view-indent ((node ggui-node-view))
+(cl-defmethod ggui--view-prefix ((node ggui-node-view) (style (eql node)))
+  (ignore style)
   (if (eq 0 (ggui--indent-level node)) ; no parent
       ""
-    (concat (ggui--indent-prefix-for-children (ggui--parent node))
+    (concat (ggui--prefix-for-children (ggui--parent node))
             (if (ggui--last-child-p node)
                 "└" "├")
             "─")))
