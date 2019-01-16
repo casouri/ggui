@@ -1679,7 +1679,7 @@ Return nil otherwise."
 (cl-defgeneric ggui--should-update ((node ggui-lazy-node))
   "Return t if NODE should update its children.")
 
-;;;; indent-view
+;;;; Mix and match text padding
 ;;
 ;; Notes on accessing slots:
 ;; always use the accessor `ggui--<slot>',
@@ -1691,26 +1691,19 @@ Return nil otherwise."
 ;; In the case of `ggui-indent-view',
 ;; it adds indent before return.
 
-(ggui-defclass ggui-indent-view (ggui-view)
-  ((indent-level
-    :initform 0
-    :type integer
-    :documentation "The level of indent."))
-  "A view that carries indent information and displays with indent."
-  :abstract t)
-
-(cl-defgeneric ggui--view-prefix ((view ggui-indent-view) style)
-  "Return the indent text for VIEW.
-STYLE is the style of prefix, it could be 'space, 'node.")
-
-(cl-defmethod ggui--view-prefix ((view ggui-indent-view) (style (eql space)))
-  (ignore style)
-  (make-string (* 2 (ggui--indent-level view)) ?\s))
+(cl-defgeneric ggui--pad (text (view ggui-view) style)
+  "Return the padded TEXT.
+VIEW is used for additional information for padding.
+STYLE is the style of prefix, it could be 'space, 'node, 'cell.")
 
 ;;;; node-view
 
-(ggui-defclass ggui-node-view (ggui-indent-view ggui-node)
-  ((lazy
+(ggui-defclass ggui-node-view (ggui-view ggui-node)
+  ((indent-level
+    :initform 0
+    :type integer
+    :documentation "The level of indent.")
+   (lazy
     :read-only t
     :type boolean
     :initform nil
@@ -1720,7 +1713,7 @@ Instead, they are shown when the node expands."))
 A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
 (cl-defmethod ggui--text ((node ggui-node-view))
-  (concat (ggui--view-prefix node 'node) (slot-value node 'text)))
+  (ggui--pad (slot-value node 'text) node 'node))
 
 ;;;;; Method of indent-view
 
@@ -1733,14 +1726,20 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
                 "│ "))
     ""))
 
-(cl-defmethod ggui--view-prefix ((node ggui-node-view) (style (eql node)))
+(cl-defmethod ggui--pad (text (view ggui-node-view) (style (eql space)))
   (ignore style)
-  (if (eq 0 (ggui--indent-level node)) ; no parent
-      ""
-    (concat (ggui--prefix-for-children (ggui--parent node))
-            (if (ggui--last-child-p node)
-                "└" "├")
-            "─")))
+  (concat (make-string (* 2 (ggui--indent-level view)) ?\s)
+          text))
+
+(cl-defmethod ggui--pad (text (node ggui-node-view) (style (eql node)))
+  (ignore style)
+  (concat (if (eq 0 (ggui--indent-level node)) ; no parent
+              ""
+            (concat (ggui--prefix-for-children (ggui--parent node))
+                    (if (ggui--last-child-p node)
+                        "└" "├")
+                    "─"))
+          text))
 
 ;;;;; Side effect of node and indent-view and view
 
@@ -1926,13 +1925,14 @@ for FORMAT see `ggui--local-table-format'."
     :documentation))
   "A cell of `ggui--local-table'.")
 
-(cl-defmethod ggui--text ((cell ggui-table-cell))
+(cl-defmethod ggui--pad (text (cell ggui-table-cell) (style (eql cell)))
+  (ignore style)
+  ;; Make TEXT into fixed length and add segment at end
   (concat (if ggui--local-table-format
               (let* ((format-for-this-column ; (TEXT WIDTH ALIGN-FN SORT-FN)
                       (nth (ggui--column cell) ggui--local-table-format))
                      (width (nth 1 format-for-this-column))
-                     (align-fn (nth 2 format-for-this-column))
-                     (text (slot-value cell 'text)))
+                     (align-fn (nth 2 format-for-this-column)))
                 (or (funcall (or align-fn #'ggui-table-align-left)
                              text width)
                     ;; don't trust users
@@ -1941,9 +1941,12 @@ for FORMAT see `ggui--local-table-format'."
                                                (ggui--column cell)))
                       text)))
             ;; (ggui-log :warn "`ggui--local-table-format' is nil.")
-            (slot-value cell 'text))
+            text)
           ;; segment
           " "))
+
+(cl-defmethod ggui--text ((cell ggui-table-cell))
+  (ggui--pad (slot-value cell 'text) cell 'cell))
 
 (ggui-defclass ggui-new-line (ggui-view)
   ((text
