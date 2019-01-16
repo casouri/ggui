@@ -599,6 +599,8 @@ If the buffer is already setup, do nothing.
 However, if FORCE is t, set it up it anyway.
 
 Error: `ggui-buffer-mising'."
+  ;; you probably don't want to default buffer to current buffer
+  ;; when the function erases buffer
   (let ((buffer (cond ((bufferp buffer) buffer)
                       ((stringp buffer) (get-buffer-create buffer))
                       (t (signal 'wrong-type-argument (list "BUFFER is not a buffer nor a string" buffer))))))
@@ -1819,6 +1821,176 @@ PARENT-LEVEL is used internally."
 (cl-defmethod ggui-remove-from :after ((child ggui-node-view) (_ ggui-node-view))
   "Set indent-level of CHILD to 0 when removed."
   (setf (ggui--indent-level child) 0))
+
+
+
+;;;; table-mode
+;;
+;; like tabulated-mode but base on ggui-views
+
+;;;;; Userland
+
+(defface ggui-table-header-face '((t (:inherit header-line)))
+  "Face of ggui table headers."
+  :group 'ggui)
+
+(defvar ggui--local-table nil
+  "The local table displayed.
+
+A list of rows in the table. Each row is also a
+list, each element of a row is a `ggui-table-cell'.
+
+Number of columns in each row should be equal and
+in sync with the number of columns in `ggui--local-table-format'.")
+
+(cl-defstruct ggui-table
+  table ; a 2-D list `ggui--local-table'
+  format ; header format `ggui--local-table-format'
+  )
+
+;; please compiler
+(defvar ggui--local-table-format)
+
+(cl-defmethod ggui-use-table (table format &optional buffer)
+  "Put TABLE into BUFFER or current buffer. Return nil.
+FORMAT is the table's header format, see `ggui--local-table-format'.
+Be aware that BUFFER (or current buffer) is erased before inserting table."
+  (let ((buffer (or buffer (current-buffer))))
+    (ggui--setup-buffer buffer t)
+    (with-current-buffer buffer
+      (ggui-put-after (setq ggui--local-table table)
+                      ggui-top-view)
+      (setq ggui--local-table-format format)
+      (setq header-line-format (ggui--make-table-header format)))))
+
+;;;;; Backstange
+
+(defvar-local ggui--local-table-format nil
+  "Specifies header format of `ggui--local-table'.
+Similar to `tabulated-list-format' but is a list.
+Each element is (NAME WIDTH ALIGN-FN SORT-FN).
+
+NAME is a string displayed as header for each column.
+
+WIDTH is the reserved width for the column.
+Note that the WIDTH is the visual length.
+That basically means CJK chars are 2 unit wide.
+More information in `ggui--visual-length'
+and `string-width'.
+
+(optional) ALIGN-FN is a function that takes two arguments:
+TEXT and WIDTH, and pad/trim and align TEXT to WIDTH.
+GGUI comes with some align functions:
+`ggui-table-align-left', `ggui-table-align-right'.
+Value of nil means use `ggui-table-align-left.'
+
+(optional) SORT-FN is a function that takes to arguments
+TEXT1 and TEXT2 and returns t if TEXT1 should
+be placed before TEXT2 and vise versa.
+Value of nil means no sorting mechanism is provided for this column.")
+
+(defun ggui-table-align-left (text width)
+  "Align TEXT to left, trim to WIDTH if needed."
+  (ggui--fix-len-visual text width 'right))
+
+(defun ggui-table-align-right (text width)
+  "Align TEXT to left, trim to WIDTH if needed."
+  (ggui--fix-len-visual text width 'left))
+
+(defun ggui--add-cell-segment (text)
+  "Return TEXT with segment added to it."
+  (concat text " "))
+
+(defun ggui--make-table-header (format)
+  "Return a string to display in header line.
+for FORMAT see `ggui--local-table-format'."
+  ;; TODO clicking commands?
+  (apply #'concat
+         (mapcar (lambda (column)
+                   (ggui--add-cell-segment
+                    (let ((name (nth 0 column))
+                          (width (nth 1 column)))
+                      (propertize
+                       (ggui--fix-len-visual name width 'right)
+                       'face 'ggui-table-header-face))))
+                 format)))
+
+;;;; table-cell
+
+(ggui-defclass ggui-table-cell (ggui-view)
+  ((column
+    :type integer
+    :documention "0-based column number of the cell.")
+   (table
+    :type ggui-table
+    :documentation))
+  "A cell of `ggui--local-table'.")
+
+(cl-defmethod ggui--text ((cell ggui-table-cell))
+  (concat (if ggui--local-table-format
+              (let* ((format-for-this-column ; (TEXT WIDTH ALIGN-FN SORT-FN)
+                      (nth (ggui--column cell) ggui--local-table-format))
+                     (width (nth 1 format-for-this-column))
+                     (align-fn (nth 2 format-for-this-column))
+                     (text (slot-value cell 'text)))
+                (or (funcall (or align-fn #'ggui-table-align-left)
+                             text width)
+                    ;; don't trust users
+                    (progn
+                      (ggui-log :error (format "ALIGN-FN of column %d should not return nil, but it did"
+                                               (ggui--column cell)))
+                      text)))
+            ;; (ggui-log :warn "`ggui--local-table-format' is nil.")
+            (slot-value cell 'text))
+          ;; segment
+          " "))
+
+(ggui-defclass ggui-new-line (ggui-view)
+  ((text
+    :initform "\n"
+    :read-only t))
+  "A `ggui-view' which the `text' slot is new line.")
+
+(defun ggui-make-cell (cell-or-string &optional column)
+  "Return a `ggui-table-cell' from CELL-OR-STRING.
+COLUMN is column number, if nil, don't set it."
+  (let ((cell (pcase cell-or-string
+                ((pred stringp) (ggui-table-cell :text cell-or-string))
+                ((pred (lambda (obj) (object-of-class-p obj 'ggui-table-cell))) cell-or-string)
+                (_ (signal 'wrong-type-argument (list "CELL-OR-STRING should be either `ggui-table-cell' or string."))))))
+    (when column
+      (setf (ggui--column cell) column))
+    cell))
+
+(defun ggui-make-row (cell-lst &rest other-cell-lst)
+  "Make a row out of CELLs.
+
+CELL-LST is a list of CELLs.
+Rest CELLs in OTHER-CELL-LST are individual CELLs.
+
+CELLs can be string or `ggui-table-cell', strings are converted
+to `ggui-table-cell' automatically."
+  (let ((all-cell-lst (append cell-lst other-cell-lst)))
+    (append (cl-loop for cell in all-cell-lst
+                     for column-idx from 0 to (1- (length all-cell-lst))
+                     collect (ggui-make-cell cell column-idx))
+            (list (ggui-new-line)))))
+
+(defun ggui-make-table (row-lst &rest other-row-lst)
+  "Make a table out of ROWs.
+ROW-LST is a list of rows,
+rest ROWs in OTHER-ROW-LST are individual rows.
+
+CELLs in a ROW can be string or `ggui-table-cell', strings are converted
+to `ggui-table-cell' automatically."
+  (mapcar #'ggui-make-row (append row-lst other-row-lst)))
+
+
+;; TODO:
+;; - insert column
+;; - node-table-cell
+;; - test
+;; - header
 
 ;;;; Provide
 
