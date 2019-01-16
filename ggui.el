@@ -1862,6 +1862,9 @@ Be aware that BUFFER (or current buffer) is erased before inserting table."
       (setq ggui--local-table-format format)
       (setq header-line-format (ggui--make-table-header format)))))
 
+;; TODO ggui-insert-column
+;; when its needed
+
 ;;;;; Backstange
 
 (defvar-local ggui--local-table-format nil
