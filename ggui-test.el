@@ -181,62 +181,65 @@ B"))))))
 ;;          collect (cl-loop for y in '(?0 ?1 ?2 ?3)
 ;;                           collect (format "00%c%c" x y)))
 
-(ggui-test-with-buffer (buf)
-  (let ((table (ggui-make-table '(("0000" "0001" "0002" "0003")
-                                  ("0010" "0011" "0012" "0013")
-                                  ("0020" "0021" "0022" "0023")
-                                  ("0030" "0031" "0032" "0033"))))
-        (format '(("Zero" 4) ("One" 4) ("Two" 4) ("Three" 4))))
-    (with-current-buffer buf
-      (ggui-use-table table format)
-      (should (equal (buffer-string)
-                     "T
+(ert-deftest ggui-table ()
+  (ggui-test-with-buffer (buf)
+    (let ((table (ggui-make-table '(("0000" "0001" "0002" "0003")
+                                    ("0010" "0011" "0012" "0013")
+                                    ("0020" "0021" "0022" "0023")
+                                    ("0030" "0031" "0032" "0033"))))
+          (format '(("Zero" 4) ("One" 4) ("Two" 4) ("Three" 4))))
+      (with-current-buffer buf
+        (ggui-use-table table format)
+        (should (equal (buffer-string)
+                       ;; make sure a space is after each cell
+                       ;; ws-butler might clean them by accident
+                       "T
 
-0000
+0000 
 
-0001
+0001 
 
-0002
+0002 
 
-0003
-
-
-
-
-0010
-
-0011
-
-0012
-
-0013
+0003 
 
 
 
 
-0020
+0010 
 
-0021
+0011 
 
-0022
+0012 
 
-0023
-
-
-
-
-0030
-
-0031
-
-0032
-
-0033
+0013 
 
 
 
 
-B")))))
+0020 
+
+0021 
+
+0022 
+
+0023 
+
+
+
+
+0030 
+
+0031 
+
+0032 
+
+0033 
+
+
+
+
+B"))))))
 
 ;;;; test app
 
