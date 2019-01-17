@@ -660,7 +660,7 @@ Return nil if none found."
 (cl-defgeneric ggui-toggle-forward (_)
   "Toggle the object's state forward.")
 
-(cl-defgeneric ggui-toggle-backward (_)
+(cl-defgeneric ggui-toggle-back (_)
   "Toggle the object's state backward.")
 
 (cl-defgeneric ggui-toggle-to (_ state-index)
