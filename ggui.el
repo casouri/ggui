@@ -679,11 +679,7 @@ If N is negative, toggle backward N times."
 (cl-defgeneric ggui-show (_)
   "Show the display.")
 
-(defclass ggui-hideshow (ggui-view)
-  ()
-  "View can hide/show.")
-
-(cl-defmethod ggui-hide ((view ggui-hideshow))
+(cl-defmethod ggui-hide ((view ggui-view))
   (if (ggui--presentp view)
       (ggui--overlay-put view 'invisible t)
     (signal 'ggui-view-not-present nil)))
@@ -691,7 +687,7 @@ If N is negative, toggle backward N times."
 (cl-defmethod ggui-hide ((seq sequence))
   (seq-map #'ggui-hide seq))
 
-(cl-defmethod ggui-show ((view ggui-hideshow))
+(cl-defmethod ggui-show ((view ggui-view))
   (if (ggui--presentp view)
       (ggui--overlay-put view 'invisible nil)
     (signal 'ggui-view-not-present nil)))
