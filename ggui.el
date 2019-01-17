@@ -1772,7 +1772,17 @@ Return NODE."
                 (eq depth 1))
       (dolist (child children)
         (ggui-expand-children child (1- depth))))
-    nil))
+    node))
+
+(cl-defmethod ggui-collapse-children ((node ggui-node-view))
+  "Collapse all children of NODE.
+Return NODE."
+  (when-let ((children (ggui--children node)))
+    (mapc #'(lambda (child)
+              (ggui-collapse-children child)
+              (ggui-hide child))
+          children))
+  node)
 
 (cl-defgeneric ggui--children-follow-node ((node ggui-node-view))
   "Make children follow node when node is displayed."
