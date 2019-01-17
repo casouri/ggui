@@ -169,6 +169,11 @@ Return nil if no match is found."
   "The last element of SEQ."
   `(seq-elt ,seq (1- (seq-length ,seq))))
 
+(defun ggui--erase-buffer ()
+  "Erase current buffer and cleans up."
+  (erase-buffer)
+  (remove-overlays))
+
 ;;;;; CJK length
 
 (defun ggui--hanp (char)
@@ -593,27 +598,26 @@ point 4 is the first (user defined) view.")
 
 (defun ggui--setup-buffer (buffer &optional force)
   "Setup BUFFER and return it. BUFFER can be either a string or a buffer.
+If it is a string and no corresponding buffer is present, create one.
 If buffer already exists, it is erased.
 
 If the buffer is already setup, do nothing.
-However, if FORCE is t, set it up it anyway.
-
-Error: `ggui-buffer-mising'."
+However, if FORCE is t, set it up it anyway."
   ;; you probably don't want to default buffer to current buffer
   ;; when the function erases buffer
-  (let ((buffer (cond ((bufferp buffer) buffer)
-                      ((stringp buffer) (get-buffer-create buffer))
-                      (t (signal 'wrong-type-argument (list "BUFFER is not a buffer nor a string" buffer))))))
-    (unless (buffer-live-p buffer) (signal 'ggui-buffer-missing (list "BUFFER is not a live buffer" buffer)))
+  (let ((buffer (get-buffer-create buffer)))
+    (unless (buffer-live-p buffer)
+      (signal 'ggui-buffer-missing
+              (list (format "BUFFER is not a live buffer: %s" buffer))))
     ;; setup
     (with-current-buffer buffer
       (if (and ggui--setup (not force))
           (ggui-log :warn "Buffer %S already set up but someone try to set up again." buffer)
         ;; we manually insert view text and setup overlay
         (ggui--edit
-         (erase-buffer)
-         (setq-local ggui-top-view (ggui-view-new ggui--top-text 'invisible t))
-         (setq-local ggui-bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
+         (ggui--erase-buffer)
+         (setq ggui-top-view (ggui-view-new ggui--top-text 'invisible t))
+         (setq ggui-bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
          ;; insert T\n\nB
          (goto-char 1)
          (insert (ggui--text ggui-top-view))
@@ -623,18 +627,8 @@ Error: `ggui-buffer-mising'."
          (ggui--move-overlay ggui-top-view 1 2)
          (ggui--move-overlay ggui-bottom-view 4 5)
          (setq ggui--setup t)
-         (read-only-mode)))))
-  (get-buffer buffer))
-
-(defun ggui-get-managed-buffer-or-create (buffer)
-  "Return a `ggui-view' managed buffer.
-BUFFER can be a buffer or a string.
-If BUFFER is a buffer, set it up as a managed buffer.
-If BUFFER is a name and already has a buffer associates with it,
-set it up as a managed buffer."
-  (let ((buf (get-buffer-create buffer)))
-    (ggui--setup-buffer buf)
-    buf))
+         (read-only-mode))))
+    buffer))
 
 (defun ggui-generate-managed-buffer (name)
   "Return a new `ggui-view' managed buffer with name NAME.
