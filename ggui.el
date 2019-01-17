@@ -1653,9 +1653,7 @@ Return nil otherwise."
 ;;;; lazy node
 
 (defclass ggui-lazy-node (ggui-node)
-  ((raw-children
-    :type list
-    :documentation "Internal use only. Stores the actual children list."))
+  ()
   "lazy-node is a type of node with on-the-fly calculated children."
   :abstract t)
 
@@ -1663,15 +1661,12 @@ Return nil otherwise."
   (setf (slot-value node 'raw-children) (slot-value node 'children))
   (slot-makeunbound node 'children))
 
-(cl-defmethod (setf ggui--children) (children (node ggui-lazy-node))
-  (setf (ggui--raw-children node) children))
-
 (cl-defmethod ggui--children ((node ggui-lazy-node))
   (if (or (not (slot-boundp node 'children))
           (ggui--should-update node))
       ;; children never set up (first time)
       ;; or should update
-      (setf (ggui--raw-children node) (ggui--generate-children node))))
+      (setf (slot-value node 'children) (ggui--generate-children node))))
 
 (cl-defgeneric ggui--generate-children ((node ggui-lazy-node))
   "Generate and return a children list for NODE.")
