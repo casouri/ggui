@@ -1823,7 +1823,7 @@ PARENT-LEVEL is used internally."
 
 
 
-;;;; table-mode
+;;;; table
 ;;
 ;; like tabulated-mode but base on ggui-views
 
@@ -1834,41 +1834,14 @@ PARENT-LEVEL is used internally."
   :group 'ggui)
 
 (defvar ggui--local-table nil
-  "The local table displayed.
+  "The local `ggui-table' displayed.
 
-A list of rows in the table. Each row is also a
+`ggui-table' has two slots, TABLE and FORMAT.
+
+TABLE is a list of rows. Each row is also a
 list, each element of a row is a `ggui-table-cell'.
 
-Number of columns in each row should be equal and
-in sync with the number of columns in `ggui--local-table-format'.")
-
-(cl-defstruct ggui-table
-  table ; a 2-D list `ggui--local-table'
-  format ; header format `ggui--local-table-format'
-  )
-
-;; please compiler
-(defvar ggui--local-table-format)
-
-(cl-defmethod ggui-use-table (table format &optional buffer)
-  "Put TABLE into BUFFER or current buffer. Return nil.
-FORMAT is the table's header format, see `ggui--local-table-format'.
-Be aware that BUFFER (or current buffer) is erased before inserting table."
-  (let ((buffer (or buffer (current-buffer))))
-    (ggui--setup-buffer buffer t)
-    (with-current-buffer buffer
-      (ggui-put-after (setq ggui--local-table table)
-                      ggui-top-view)
-      (setq ggui--local-table-format format)
-      (setq header-line-format (ggui--make-table-header format)))))
-
-;; TODO ggui-insert-column
-;; when its needed
-
-;;;;; Backstange
-
-(defvar-local ggui--local-table-format nil
-  "Specifies header format of `ggui--local-table'.
+FORMAT specifies the header format of `ggui--local-table'.
 Similar to `tabulated-list-format' but is a list.
 Each element is (NAME WIDTH ALIGN-FN SORT-FN).
 
@@ -1890,6 +1863,30 @@ Value of nil means use `ggui-table-align-left.'
 TEXT1 and TEXT2 and returns t if TEXT1 should
 be placed before TEXT2 and vise versa.
 Value of nil means no sorting mechanism is provided for this column.")
+
+(cl-defstruct ggui-table
+  "More info in `ggui--local-table'."
+  table ; 2D list
+  format
+  )
+
+(defun ggui-use-table (gtable &optional buffer)
+  "Put `ggui-table' GTABLE into BUFFER or current buffer. Return nil.
+Be aware that BUFFER (or current buffer) is erased before inserting table."
+  (let ((buffer (or buffer (current-buffer))))
+    (ggui--setup-buffer buffer t)
+    (with-current-buffer buffer
+      (ggui-put-after (ggui-table-table gtable)
+                      ggui-top-view)
+      (setq ggui--local-table gtable)
+      (setq header-line-format
+            (ggui--make-table-header (ggui-table-format gtable))))))
+
+;; TODO ggui-insert-column
+;; when its needed
+
+;;;;; Backstange
+
 
 (defun ggui-table-align-left (text width)
   "Align TEXT to left, trim to WIDTH if needed."
@@ -1922,18 +1919,16 @@ for FORMAT see `ggui--local-table-format'."
 (ggui-defclass ggui-table-cell (ggui-view)
   ((column
     :type integer
-    :documention "0-based column number of the cell.")
-   (table
-    :type ggui-table
-    :documentation))
+    :documention "0-based column number of the cell."))
   "A cell of `ggui--local-table'.")
 
 (cl-defmethod ggui--pad (text (cell ggui-table-cell) (style (eql cell)))
   (ignore style)
   ;; Make TEXT into fixed length and add segment at end
-  (concat (if ggui--local-table-format
-              (let* ((format-for-this-column ; (TEXT WIDTH ALIGN-FN SORT-FN)
-                      (nth (ggui--column cell) ggui--local-table-format))
+  (concat (if ggui--local-table
+              (let* ((header-format (ggui-table-format ggui--local-table))
+                     (format-for-this-column ; (TEXT WIDTH ALIGN-FN SORT-FN)
+                      (nth (ggui--column cell) header-format))
                      (width (nth 1 format-for-this-column))
                      (align-fn (nth 2 format-for-this-column)))
                 (or (funcall (or align-fn #'ggui-table-align-left)

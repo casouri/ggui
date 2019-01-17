@@ -189,7 +189,7 @@ B"))))))
                                     ("0030" "0031" "0032" "0033"))))
           (format '(("Zero" 4) ("One" 4) ("Two" 4) ("Three" 4))))
       (with-current-buffer buf
-        (ggui-use-table table format)
+        (ggui-use-table (make-ggui-table :table table :format format))
         (should (equal (buffer-string)
                        ;; make sure a space is after each cell
                        ;; ws-butler might clean them by accident
