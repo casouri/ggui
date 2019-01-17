@@ -534,7 +534,8 @@ Should: one and only one before point, one and only one after point."
    ;; TODO: investigate into invisible overlay:
    ;; does front/rear advance work as normal?
    (ggui--move-overlay aview (point) (point))
-   (insert (ggui--text aview))))
+   (insert (ggui--text aview)))
+  aview)
 
 (cl-defmethod ggui-put-after ((aview ggui-view) (view ggui-view))
   (ggui--edit
@@ -543,7 +544,8 @@ Should: one and only one before point, one and only one after point."
    (ggui--insert-2delimiter)
    (backward-char)
    (ggui--move-overlay aview (point) (point))
-   (insert (ggui--text aview))))
+   (insert (ggui--text aview)))
+  aview)
 
 ;;;;;; Remove before insert
 
@@ -1754,13 +1756,14 @@ A `ggui-node-view''s children have to be all `ggui-node-view's.")
               (ggui-view-not-present (cl-call-next-method node node-b)))
           (ggui-put-after node children))
       ;; otherwise just put node after node-b as usual
-      (cl-call-next-method node node-b))))
+      (cl-call-next-method node node-b)))
+  node)
 
 (cl-defmethod ggui-expand-children ((node ggui-node-view) &optional depth)
   "Expand and show NODE's children.
 DEPTH is maximum levels of children to display, nil means 1.
 Set DEPTH to 'infinity if you want to expand all possible levels.
-Return nil"
+Return NODE."
   (when-let ((children (ggui--children node)))
     (if (ggui--presentp children)
         (ggui-show children)
