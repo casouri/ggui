@@ -6,7 +6,7 @@
 ;; Maintainer: Yuan Fu <casouri@gmail.com>
 ;; Keywords: extensions
 ;; Package-Requires: ((emacs ""))
-;; Version: 0.0
+;; Version: 0.1.0
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -310,10 +310,11 @@ Virtual slot:
 
 (cl-defmethod initialize-instance :after ((view ggui-view) &rest _)
   "Setup overlay and property."
-  (setf (ggui--overlay view)
-        (apply #'ggui--make-overlay
-               1 1 (get-buffer-create " *ggui-tmp*")
-               (ggui--property-list view)))
+  (unless (ggui--overlay view)
+    (setf (ggui--overlay view)
+          (apply #'ggui--make-overlay
+                 1 1 nil
+                 (ggui--property-list view))))
   (overlay-put (ggui--overlay view) 'ggui-view view)
   (slot-makeunbound view 'property-list))
 
@@ -327,8 +328,8 @@ for overlay properties to add to the result."
 
 (cl-defmethod ggui--presentp ((view ggui-view))
   "Return t if VIEW is inserted into some buffer (present), nil if not."
-  ;; if the overlay is in tmp buffer, it is not presented.
-  (not (eq (overlay-buffer (ggui--overlay view)) (get-buffer-create " *ggui-tmp*"))))
+  ;; if the overlay is not in any buffer, VIEW is not present
+  (if (overlay-buffer (ggui--overlay view)) t nil))
 
 (cl-defmethod ggui--presentp ((seq sequence))
   (seq-reduce (lambda (a b) (and a b))
@@ -338,13 +339,16 @@ for overlay properties to add to the result."
 (defun ggui--make-overlay (beg end &optional buffer &rest property-list)
   "Return an overlay from BEG to END in BUFFER.
 
-Use current buffer if BUFFER is nil. PROPERTY-LIST:
+Don’t bind overlay to any buffer if BUFFER is nil.
+PROPERTY-LIST:
 Remaining arguments form a sequence of PROPERTY VALUE pairs
 for overlay properties to add to the result."
-  (let ((overlay (make-overlay beg end buffer nil t)))
+  (let ((overlay (make-overlay beg end buffer t nil)))
     ;; marker: insert in front: included, end: included
     (while property-list
       (overlay-put overlay (pop property-list) (pop property-list)))
+    ;; don’t bind overlay to any buffer if BUFFER is nil.
+    (unless buffer (delete-overlay overlay))
     overlay))
 
 (cl-defmethod (setf ggui--text) :after (text (view ggui-view))
@@ -352,9 +356,11 @@ for overlay properties to add to the result."
   (when (ggui--presentp view)
     (with-current-buffer (ggui--buffer view)
       (ggui--edit
-       (goto-char (ggui--beg view))
-       (delete-region (ggui--beg view) (ggui--end view))
-       (insert text)))))
+       (let ((beg (ggui--beg view)))
+         (goto-char beg)
+         (delete-region beg (ggui--end view))
+         (insert text)
+         (ggui--move-overlay view beg (point)))))))
 
 ;;;;; Beg & end & buffer
 
@@ -397,38 +403,12 @@ Return nil."
 (cl-defmethod ggui--move-overlay ((view ggui-view) beg end &optional buffer)
   "Move overlay of VIEW to BEG END in BUFFER.
 If BEG, END or BUFFER omitted, don't change it.
-Return nil."
+Return the overlay."
   ;; basically create a new one, set values, delete the old one
-  (let ((old-ov (ggui--overlay view))
-        new-ov)
-    (setq new-ov (apply #'ggui--make-overlay
-                        (or beg (overlay-start old-ov))
-                        (or end (overlay-end old-ov))
-                        buffer
-                        (overlay-properties old-ov)))
-    (setf (ggui--overlay view) new-ov)
-    (delete-overlay old-ov)) ; Don't forget to cleanup -- Izayoi Sakuya
-  nil)
-
-;;;;; Delimiter
-
-(defun ggui--delimiter ()
-  "Return a delimiter."
-  (propertize "\n" 'invisible t 'ggui-delimiter t))
-
-(defun ggui--2delimiter ()
-  "Return two delimiter together."
-  (propertize "\n\n" 'invisible t 'ggui-delimiter t))
-
-(defun ggui--insert-delimiter ()
-  "Insert a delimiter at point. Return nil.
-When return, point is at the end of the delimiters."
-  (ggui--edit-nosave (insert (ggui--delimiter))))
-
-(defun ggui--insert-2delimiter ()
-  "Insert two delimiters at point. Return nil.
-When return, point is at the end of delimiters."
-  (ggui--edit-nosave (insert (ggui--2delimiter))))
+  (move-overlay (ggui--overlay view)
+                (or beg (ggui--beg view))
+                (or end (ggui--end view))
+                buffer))
 
 ;;;;; Put/insert before/after
 
@@ -445,42 +425,10 @@ Return A.")
   "Insert A after B.
 Return A.")
 
-(defmacro ggui-insert-before (str view)
-  "Insert STR before VIEW. VIEW cover STR.
-Return new text of VIEW."
-  `(setf (ggui--text ,view)
-         (concat ,str (ggui--text ,view))))
-
-(defmacro ggui-insert-after (str view)
-  "Insert STR after VIEW. VIEW doesn't cover STR.
-Return new text of VIEW."
-  `(setf (ggui--text ,view)
-         (concat (ggui--text ,view) ,str)))
-
-
-(defun ggui--check-delimiter ()
-  "Check if delimiters are correctly setup.
-Should: one and only one before point, one and only one after point."
-  (let ((point (point)))
-    (cond ((not (plist-get (text-properties-at (1- point)) 'ggui-delimiter))
-           (signal 'ggui-delimiter-misplace
-                   (list (format "Left delimiter is missing, point at %d, delimiter should be at %d" point (1- point)))))
-
-          ((plist-get (text-properties-at (- point 2)) 'ggui-delimiter)
-           (signal 'ggui-delimiter-misplace
-                   (list (format "Extra delimiter left to left delimiter, point at %d, extra delimiter point at %d" point (- point 2)))))
-
-          ((not (plist-get (text-properties-at point) 'ggui-delimiter))
-           (signal 'ggui-delimiter-misplace
-                   (list (format "Right delimiter is missing, point at %d, delimiter should be at %d" point point))))
-
-          ((plist-get (text-properties-at (1+ point)) 'ggui-delimiter)
-           (signal 'ggui-delimiter-misplace
-                   (list (format "Extra delimiter right to right delimiter, point at %d, extra delimiter point at %d" point (1+ point))))))))
 
 ;;;;;; Check
 
-;; simple to please compiler
+;; simply to please compiler
 ;; real definition below in "managed buffer" section
 (defvar ggui-top-view)
 (defvar ggui-bottom-view)
@@ -490,61 +438,43 @@ Should: one and only one before point, one and only one after point."
   (when (eq ggui-top-view view)
     (signal 'ggui-prohibit-edit (list (format "Nothing can be put before a `ggui-top-view', you try to put: %s" stuff))))
   (unless (ggui--presentp view)
-    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it")))))
+    (signal 'ggui-view-not-present (list (format "%s is not present yet, you can't put STUFF before it" view)))))
 
 (cl-defmethod ggui-put-after :before (stuff (view ggui-view))
   "Check for misuse."
   (when (eq ggui-bottom-view view)
     (signal 'ggui-prohibit-edit (list (format "Nothing can be put after a `ggui-bottom-view', you try to put: %s" stuff))))
   (unless (ggui--presentp view)
-    (signal 'ggui-view-not-present (list (format "VIEW is not present yet, you can't put STUFF before it")))))
+    (signal 'ggui-view-not-present (list (format "%s is not present yet, you can't put STUFF before it" view)))))
 
-;;;;;; String (probably shouldn't add string to views)
-;;
-;; Once you put something into a ggui-view managed buffer
-;; it's a horse without reins
-;; there is no easy way to find, replace or edit it
+(cl-defmethod ggui-put-before :before (_ stuff)
+  "Check for misues."
+  (unless stuff (signal 'wrong-type-argument (list "STUFF cannot be nil."))))
 
-(cl-defmethod ggui-put-before ((str string) (view ggui-view))
-  (ggui--edit
-   (goto-char (1- (ggui--beg view)))
-   ;; now we are between the two delimiters
-   (ggui--check-delimiter)
-   (ggui--insert-2delimiter)
-   (backward-char)
-   (insert str)))
-
-(cl-defmethod ggui-put-after ((str string) (view ggui-view))
-  (ggui--edit
-   (goto-char (1+ (ggui--end view)))
-   (ggui--check-delimiter)
-   (ggui--insert-2delimiter)
-   (forward-char)
-   (insert str)))
+(cl-defmethod ggui-put-after :before (_ stuff)
+  "Check for misues."
+  (unless stuff (signal 'wrong-type-argument (list "STUFF cannot be nil."))))
 
 ;;;;;; View
 
 (cl-defmethod ggui-put-before ((aview ggui-view) (view ggui-view))
   (ggui--edit
-   (goto-char (1- (ggui--beg view)))
-   ;; now we are between the two delimiters
-   (ggui--check-delimiter)
-   (ggui--insert-2delimiter)
-   (backward-char)
-   ;; TODO: investigate into invisible overlay:
-   ;; does front/rear advance work as normal?
-   (ggui--move-overlay aview (point) (point))
-   (insert (ggui--text aview)))
+   (let (abeg aend)
+     (goto-char (ggui--beg view))
+     (setq abeg (point))
+     (insert (ggui--text aview))
+     (setq aend (point))
+     (ggui--move-overlay aview abeg aend)))
   aview)
 
 (cl-defmethod ggui-put-after ((aview ggui-view) (view ggui-view))
   (ggui--edit
-   (goto-char (1+ (ggui--end view)))
-   (ggui--check-delimiter)
-   (ggui--insert-2delimiter)
-   (backward-char)
-   (ggui--move-overlay aview (point) (point))
-   (insert (ggui--text aview)))
+   (let (abeg aend)
+     (goto-char (ggui--end view))
+     (setq abeg (point))
+     (insert (ggui--text aview))
+     (setq aend (point))
+     (ggui--move-overlay aview abeg aend)))
   aview)
 
 ;;;;;; Remove before insert
@@ -562,20 +492,7 @@ Should: one and only one before point, one and only one after point."
   "Remove VIEW's presence from buffer."
   (when (ggui--presentp view)
     (ggui--edit
-     (let (beg end)
-       ;; check left
-       (goto-char (ggui--beg-mark view))
-       (backward-char)
-       (ggui--check-delimiter)
-       (setq beg (point))
-       ;; check right
-       (goto-char (ggui--end view))
-       (forward-char)
-       (ggui--check-delimiter)
-       (setq end (point))
-       ;; move overlay and remove text
-       (ggui--move-overlay view 1 1 (get-buffer-create " *ggui-tmp*"))
-       (delete-region beg end)))))
+     (delete-region (ggui--beg view) (ggui--end view)))))
 
 ;;;; ggui managed buffer
 ;;
@@ -588,15 +505,6 @@ Should: one and only one before point, one and only one after point."
   "The top most (invisible) view of buffer.")
 (defvar-local ggui-bottom-view nil
   "The bottom most (invisible) view of buffer.")
-(defconst ggui--top-text "T" "(Invisible) text of `ggui-top-view'.")
-(defconst ggui--bottom-text "B" "(Invisible) text of `ggui-bottom-view'.")
-(defconst ggui-point-min 3
-  "The point min of a `ggui-view' managed buffer.
-
-Point 1 is `ggui--top-text',
-point 2 is a delimiter,
-point 3 is another delimiter,
-point 4 is the first (user defined) view.")
 
 (defun ggui--setup-buffer (buffer &optional force)
   "Setup BUFFER and return it. BUFFER can be either a string or a buffer.
@@ -605,8 +513,8 @@ If buffer already exists, it is erased.
 
 If the buffer is already setup, do nothing.
 However, if FORCE is t, set it up it anyway."
-  ;; you probably don't want to default buffer to current buffer
-  ;; when the function erases buffer
+  ;; you probably don't want to default buffer to be current buffer
+  ;; when the function might erases buffer
   (let ((buffer (get-buffer-create buffer)))
     (unless (buffer-live-p buffer)
       (signal 'ggui-buffer-missing
@@ -615,19 +523,10 @@ However, if FORCE is t, set it up it anyway."
     (with-current-buffer buffer
       (if (and ggui--setup (not force))
           (ggui-log :warn "Buffer %S already set up but someone try to set up again." buffer)
-        ;; we manually insert view text and setup overlay
         (ggui--edit
          (ggui--erase-buffer)
-         (setq ggui-top-view (ggui-view-new ggui--top-text 'invisible t))
-         (setq ggui-bottom-view (ggui-view-new ggui--bottom-text 'invisible t))
-         ;; insert T\n\nB
-         (goto-char 1)
-         (insert (ggui--text ggui-top-view))
-         (ggui--insert-2delimiter)
-         (insert (ggui--text ggui-bottom-view))
-         ;; put overlay
-         (ggui--move-overlay ggui-top-view 1 2)
-         (ggui--move-overlay ggui-bottom-view 4 5)
+         (setq ggui-top-view (ggui-view :text "" :overlay (make-overlay 1 1 nil nil nil)))
+         (setq ggui-bottom-view (ggui-view :text "" :overlay (make-overlay 1 1 nil t t)))
          (setq ggui--setup t)
          (read-only-mode))))
     buffer))
@@ -641,6 +540,7 @@ NAME might be modified if some other buffer with the same name exists."
 
 ;;;;; ggui-object-at-point
 
+;; FIXME I don’t like the implementation
 (defun ggui-object-at-point ()
   "Return the ggui object at point.
 Return nil if none found."
@@ -653,6 +553,8 @@ Return nil if none found."
 
 ;;;; Toggleable
 
+;;FIXME a better design?
+
 (cl-defgeneric ggui-toggle-forward (_)
   "Toggle the object's state forward.")
 
@@ -664,14 +566,42 @@ Return nil if none found."
 
 (defun ggui-toggle-at-point (n)
   "Toggle the stuff at point (if it relates to a ggui object).
-If provided with numeric prefix argument, toggle forward N times.
-If N is negative, toggle backward N times."
+If provided with numeric prefix argument, toggle to state N."
   (interactive "p")
-  (when-let ((obj (ggui-object-at-point)))
-    (dotimes (_ (abs n))
-      (if (>= n 0)
-          (ggui-toggle-forward obj)
-        (ggui-toggle-back obj)))))
+  (if-let ((obj (ggui-object-at-point)))
+      (condition-case nil
+          (ggui-toggle-to n)
+        ('cl-no-applicable-method (message "Object at point doesn't support toggling")))
+    (message "No object at point.")))
+
+(ggui-defclass ggui-default-toggle ()
+  ((state
+    :type (integer 0 *)
+    :initform 0
+    :documentation "The state of the toggle, must >= 1")
+   (state-count
+    :type (integer 1 *)
+    :initform 1
+    :documentation "The number of states, must >= 1."))
+  "Default toggle.")
+
+(cl-defmethod ggui--normalize-state (state (toggle ggui-default-toggle))
+  "Normalize STATE of TOGGLE.
+Basically STATE < 0 --> max state
+          STATE > max state --> 0"
+  (cond ((< state 0)
+         (1- (ggui--state-count toggle)))
+        ((> state (ggui--state-count toggle))
+         0)
+        (t state)))
+
+(cl-defmethod ggui-toggle-back ((toggle ggui-default-toggle))
+  (ggui-toggle-to (setf (ggui--state toggle)
+                        (ggui--normalize-state (1- (ggui--state toggle))))))
+
+(cl-defmethod ggui-toggle-forward ((toggle ggui-default-toggle))
+  (ggui-toggle-to (setf (ggui--state toggle)
+                        (ggui--normalize-state (1+ (ggui--state toggle))))))
 
 ;;;; Hideshow
 
@@ -1256,6 +1186,21 @@ HELP is the optional help tooltip."
                 (ggui--hint-recover-default-hint)
                 (funcall #',fn)))))
 
+(cl-defmethod ggui-set-keymap-parent ((child ggui-map) (parent ggui-map))
+  "Set CHILD's parent to PARENT.
+Like `set-keymap-parent'."
+  (set-keymap-parent (ggui-map-map child) (ggui-map-map parent)))
+
+(cl-defmethod ggui-set-keymap-parent ((child ggui-map) parent)
+  "Set CHILD's parent to PARENT.
+Like `set-keymap-parent'."
+  (set-keymap-parent (ggui-map-map child) parent))
+
+(cl-defmethod ggui-set-keymap-parent (child (parent ggui-map))
+  "Set CHILD's parent to PARENT.
+Like `set-keymap-parent'."
+  (set-keymap-parent child (ggui-map-map parent)))
+
 ;;;;; Backstage
 
 (defun ggui--display-map-hint (gmap)
@@ -1644,7 +1589,7 @@ Return nil otherwise."
 
 ;;;; lazy node
 
-(defclass ggui-lazy-node (ggui-node)
+(ggui-defclass ggui-lazy-node (ggui-node)
   ()
   "lazy-node is a type of node with on-the-fly calculated children."
   :abstract t)
@@ -1658,7 +1603,8 @@ Return nil otherwise."
           (ggui--should-update node))
       ;; children never set up (first time)
       ;; or should update
-      (setf (slot-value node 'children) (ggui--generate-children node))))
+      (setf (slot-value node 'children) (ggui--generate-children node))
+    (slot-value node 'children)))
 
 (cl-defgeneric ggui--generate-children ((node ggui-lazy-node))
   "Generate and return a children list for NODE.")
@@ -1685,7 +1631,7 @@ STYLE is the style of prefix, it could be 'space, 'node, 'cell.")
 
 ;;;; node-view
 
-(ggui-defclass ggui-node-view (ggui-view ggui-node)
+(ggui-defclass ggui-node-view (ggui-view ggui-node ggui-default-toggle)
   ((indent-level
     :initform 0
     :type integer
@@ -1695,7 +1641,10 @@ STYLE is the style of prefix, it could be 'space, 'node, 'cell.")
     :type boolean
     :initform nil
     :documentation "A node view is lazy if its children doesn't follow it when it is displayed.
-Instead, they are shown when the node expands."))
+Instead, they are shown when the node expands.")
+   (state-count
+    :initform 2
+    :read-only t))
   "A node that is also a view.
 A `ggui-node-view''s children have to be all `ggui-node-view's.")
 
@@ -1819,6 +1768,17 @@ PARENT-LEVEL is used internally."
   "Set indent-level of CHILD to 0 when removed."
   (setf (ggui--indent-level child) 0))
 
+;;;;; Toggle
+
+(cl-defmethod ggui-toggle-to ((node ggui-node-view) (n (eql 0)))
+  "Collapse NODE's children."
+  (ignore n)
+  (ggui-collapse-children node))
+
+(cl-defmethod ggui-toggle-to ((node ggui-node-view) (n (eql 1)))
+  "Collapse NODE's children."
+  (ignore n)
+  (ggui-expand-children node))
 
 
 ;;;; table
@@ -1993,6 +1953,8 @@ to `ggui-table-cell' automatically."
 (cl-defmethod ggui--text ((node ggui-cell-node))
   (ggui--pad (ggui--pad (slot-value node 'text) node 'node)
              node 'cell))
+
+;; TODO tabs
 
 ;;;; Provide
 

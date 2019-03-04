@@ -76,48 +76,48 @@ It also wraps everything in `save-excursion' for convenience."
 
 (ert-deftest ggui-seq ()
   (ggui-test-with-buffer (buf1)
-    (let* ((view1 (ggui-view-new "woomy"))
-           (view2 (ggui-view-new "veemo"))
-           (view3 (ggui-view-new "fresh"))
+    (let* ((view1 (ggui-view-new "woomy\n"))
+           (view2 (ggui-view-new "veemo\n"))
+           (view3 (ggui-view-new "fresh\n"))
            (seq (list view1 view2 view3))
-           (view99 (ggui-view-new "loove"))
-           (view98 (ggui-view-new "mary"))
+           (view99 (ggui-view-new "loove\n"))
+           (view98 (ggui-view-new "mary\n"))
            ssq)
       (with-current-buffer buf1
         ;; setup
         (ggui--setup-buffer buf1)
         ;; put after
         (ggui-put-after seq ggui-top-view)
-        (should (equal "T\n\nwoomy\n\nveemo\n\nfresh\n\nB" (buffer-string)))
+        (should (equal "woomy\nveemo\nfresh\n" (buffer-string)))
         ;; put at 3rd place
         (ggui-insert-at-n view99 seq 2)
-        (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nB" (buffer-string)))
+        (should (equal "woomy\nveemo\nloove\nfresh\n" (buffer-string)))
         (should (equal seq (list view1 view2 view99 view3)))
         ;; delete veemo
         (ggui-remove-n view2 seq)
-        (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nB" (buffer-string)))
+        (should (equal "woomy\nloove\nfresh\n" (buffer-string)))
         (should (equal seq (list view1 view99 view3)))
         ;; put view to seq
         (ggui-put-after view2 seq)
-        (should (equal "T\n\nwoomy\n\nloove\n\nfresh\n\nveemo\n\nB" (buffer-string)))
+        (should (equal "woomy\nloove\nfresh\nveemo\n" (buffer-string)))
         ;; remove seq's display
         (ggui--remove-display seq)
-        (should (equal "T\n\nveemo\n\nB" (buffer-string)))
+        (should (equal "veemo\n" (buffer-string)))
         ;; list of list
         (setq ssq (list seq view98))
         (ggui-put-after ssq view2)
-        (should (equal "T\n\nveemo\n\nwoomy\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
+        (should (equal "veemo\nwoomy\nloove\nfresh\nmary\n" (buffer-string)))
         ;; car of ssq is seq, put at 2nd position
         (ggui-insert-at-n view2 seq 1)
-        (should (equal "T\n\nwoomy\n\nveemo\n\nloove\n\nfresh\n\nmary\n\nB" (buffer-string)))
+        (should (equal "woomy\nveemo\nloove\nfresh\nmary\n" (buffer-string)))
         ;; edit a element from a list
         (should (equal (nth 2 seq) view99))
-        (setf (ggui--text (nth 2 seq)) "love")
-        (should (equal "T\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nmary\n\nB" (buffer-string)))
+        (setf (ggui--text (nth 2 seq)) "love\n")
+        (should (equal "woomy\nveemo\nlove\nfresh\nmary\n" (buffer-string)))
         ;; put seq at somewhere in ssq
         (ggui-remove-n (car ssq) ssq)
         (ggui-insert-at-n seq ssq 1)
-        (should (equal "T\n\nmary\n\nwoomy\n\nveemo\n\nlove\n\nfresh\n\nB" (buffer-string)))
+        (should (equal "mary\nwoomy\nveemo\nlove\nfresh\n" (buffer-string)))
         ))))
 
 ;;;; node
@@ -153,27 +153,13 @@ It also wraps everything in `save-excursion' for convenience."
       (ggui--setup-buffer buf)
       (with-current-buffer buf
         (ggui-put-after ntop ggui-top-view)
-        (should (equal (buffer-string) "T
-
---------------------
-
-
+        (should (equal (buffer-string) "--------------------
 ├─100
-
-
 ├─200
-
-
 │ ├─210
-
-
 │ └─220
-
-
 └─300
-
-
-B"))))))
+"))))))
 
 ;;;; table
 
@@ -193,53 +179,11 @@ B"))))))
         (should (equal (buffer-string)
                        ;; make sure a space is after each cell
                        ;; ws-butler might clean them by accident
-                       "T
-
-0000 
-
-0001 
-
-0002 
-
-0003 
-
-
-
-
-0010 
-
-0011 
-
-0012 
-
-0013 
-
-
-
-
-0020 
-
-0021 
-
-0022 
-
-0023 
-
-
-
-
-0030 
-
-0031 
-
-0032 
-
-0033 
-
-
-
-
-B"))))))
+                       "0000 0001 0002 0003 
+0010 0011 0012 0013 
+0020 0021 0022 0023 
+0030 0031 0032 0033 
+"))))))
 
 ;;;; test app
 
